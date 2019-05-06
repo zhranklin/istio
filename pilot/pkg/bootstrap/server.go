@@ -35,12 +35,12 @@ import (
 	"github.com/gogo/protobuf/types"
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -181,6 +181,12 @@ type PilotArgs struct {
 	KeepaliveOptions     *istiokeepalive.Options
 	// ForceStop is set as true when used for testing to make the server stop quickly
 	ForceStop bool
+	// When the current cluster has no healthy instance, access the external cluster through the backup gateway.
+	BackUpAddress string
+
+	PortMappingManager string
+
+	NsfUrlPrefix string
 }
 
 // Server contains the runtime configuration for the Pilot discovery service.
@@ -989,7 +995,18 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 		IstioConfigStore: s.istioConfigStore,
 		ServiceDiscovery: s.ServiceController,
 		MixerSAN:         s.mixerSAN,
+		BackupAddress:    args.BackUpAddress,
+		PortManagerMap:   make(map[string][2]int),
 	}
+
+	kvs := strings.Split(args.PortMappingManager, ",")
+	for _, value := range kvs {
+		protocol, src, dst := parserPortMapping(value)
+		environment.PortManagerMap[protocol] = [2]int{src, dst}
+	}
+
+	vs := strings.Split(args.NsfUrlPrefix, ",")
+	environment.NsfUrlPrefix = vs
 
 	// Set up discovery service
 	discovery, err := envoy.NewDiscoveryService(
@@ -1123,6 +1140,25 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 	}
 
 	return nil
+}
+
+func parserPortMapping(str string) (string, int, int) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("Invalid port input: %v ,so skip", err)
+		}
+	}()
+	per := strings.Split(str, "|")
+	sd := strings.Split(per[1], ":")
+	srcport, err := strconv.Atoi(sd[0])
+	if err != nil {
+		panic(err)
+	}
+	dstport, err := strconv.Atoi(sd[1])
+	if err != nil {
+		panic(err)
+	}
+	return per[0], srcport, dstport
 }
 
 func (s *Server) initConsulRegistry(serviceControllers *aggregate.Controller, args *PilotArgs) error {

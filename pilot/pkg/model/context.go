@@ -57,6 +57,12 @@ type Environment struct {
 	// routable L3 network. A single routable L3 network can have one or more
 	// service registries.
 	MeshNetworks *meshconfig.MeshNetworks
+
+	BackupAddress string
+
+	PortManagerMap map[string][2]int
+
+	NsfUrlPrefix []string
 }
 
 // Proxy contains information about an specific instance of a proxy (envoy sidecar, gateway,
@@ -527,7 +533,6 @@ func isValidIPAddress(ip string) bool {
 
 // Pile all node metadata constants here
 const (
-
 	// NodeMetadataIstioProxyVersion specifies the Envoy version associated with the proxy
 	NodeMetadataIstioProxyVersion = "ISTIO_PROXY_VERSION"
 

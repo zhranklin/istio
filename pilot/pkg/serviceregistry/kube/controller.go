@@ -294,7 +294,13 @@ func (c *Controller) Services() ([]*model.Service, error) {
 	}
 	c.RUnlock()
 	sort.Slice(out, func(i, j int) bool { return out[i].Hostname < out[j].Hostname })
-
+	for _, v := range out {
+		if _, ok := v.Ports.GetByPort(8500); !ok {
+			println(v.Hostname + "+++++ no 8500")
+		} else {
+			println(v.Hostname + "+++++ has 8500")
+		}
+	}
 	return out, nil
 }
 
@@ -731,6 +737,14 @@ func (c *Controller) AppendServiceHandler(f func(*model.Service, model.Event)) e
 		}
 
 		svcConv := convertService(*svc, c.domainSuffix)
+		/*		defaultPorts := c.genDefaultProtocolPort()
+				if len(defaultPorts) != 0 {
+					svcConv.Ports = append(svcConv.Ports, defaultPorts...)
+				}*/
+		for _, v := range svcConv.Ports {
+			log.Infof("svcConv port: %d", v.Port)
+		}
+
 		instances := externalNameServiceInstances(*svc, svcConv)
 		switch event {
 		case model.EventDelete:
@@ -757,6 +771,18 @@ func (c *Controller) AppendServiceHandler(f func(*model.Service, model.Event)) e
 	})
 	return nil
 }
+
+/*func (c *Controller) genDefaultProtocolPort() []*model.Port {
+	ports := make([]*model.Port, 0)
+	for k, v := range c.Env.PortManagerMap {
+		ports = append(ports, &model.Port{
+			Name:     k + "_default",
+			Port:     v,
+			Protocol: model.Protocol(k),
+		})
+	}
+	return ports
+}*/
 
 // AppendInstanceHandler implements a service catalog operation
 func (c *Controller) AppendInstanceHandler(f func(*model.ServiceInstance, model.Event)) error {

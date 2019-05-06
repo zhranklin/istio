@@ -155,6 +155,15 @@ func init() {
 	discoveryCmd.PersistentFlags().BoolVar(&serverArgs.DiscoveryOptions.EnableCaching, "discoveryCache", true,
 		"Enable caching discovery service responses")
 
+	//nsf-extension
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.BackUpAddress, "backupAddress", "",
+		"The address of backup gateway,  When the current cluster has no healthy instance, access the external"+
+			" cluster through the backup gateway.")
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.PortMappingManager, "portMapping", "http|8550:80",
+		"Comma separated list of protocol default port")
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfUrlPrefix, "nsfUrlPrefix", "/proxy,/p,/hash,/chash,/least",
+		"Comma separated list of url prefix, which will be proccessed by PortMappingManager")
+
 	// Attach the Istio logging options to the command.
 	loggingOptions.AttachCobraFlags(rootCmd)
 
