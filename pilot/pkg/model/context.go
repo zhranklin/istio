@@ -63,6 +63,9 @@ type Environment struct {
 	PortManagerMap map[string][2]int
 
 	NsfUrlPrefix []string
+
+	NsfHostPrefix string
+	NsfHostSuffix string
 }
 
 // Proxy contains information about an specific instance of a proxy (envoy sidecar, gateway,

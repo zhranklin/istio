@@ -172,19 +172,29 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 
 		virtualHosts := make([]route.VirtualHost, 0, len(virtualHostWrapper.VirtualServiceHosts)+len(virtualHostWrapper.Services))
 		for _, host := range virtualHostWrapper.VirtualServiceHosts {
-			virtualHosts = append(virtualHosts, route.VirtualHost{
+			vh := route.VirtualHost{
 				Name:    fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port),
 				Domains: []string{host, fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port)},
 				Routes:  virtualHostWrapper.Routes,
-			})
+			}
+			if push.Env.NsfHostPrefix != "" || push.Env.NsfHostSuffix != "" {
+				serviceName := strings.Split(host, ".")[0]
+				vh.Domains = append(vh.Domains, push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix)
+			}
+			virtualHosts = append(virtualHosts, vh)
 		}
 
 		for _, svc := range virtualHostWrapper.Services {
-			virtualHosts = append(virtualHosts, route.VirtualHost{
+			vh := route.VirtualHost{
 				Name:    fmt.Sprintf("%s:%d", svc.Hostname, virtualHostWrapper.Port),
 				Domains: generateVirtualHostDomains(svc, virtualHostWrapper.Port, node),
 				Routes:  virtualHostWrapper.Routes,
-			})
+			}
+			if push.Env.NsfHostPrefix != "" || push.Env.NsfHostSuffix != "" {
+				serviceName := strings.Split(string(svc.Hostname), ".")[0]
+				vh.Domains = append(vh.Domains, push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix)
+			}
+			virtualHosts = append(virtualHosts, vh)
 		}
 
 		vHostPortMap[virtualHostWrapper.Port] = append(vHostPortMap[virtualHostWrapper.Port], virtualHosts...)

@@ -187,6 +187,9 @@ type PilotArgs struct {
 	PortMappingManager string
 
 	NsfUrlPrefix string
+
+	NsfHostPrefix string
+	NsfHostSuffix string
 }
 
 // Server contains the runtime configuration for the Pilot discovery service.
@@ -1007,6 +1010,8 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 
 	vs := strings.Split(args.NsfUrlPrefix, ",")
 	environment.NsfUrlPrefix = vs
+	environment.NsfHostPrefix = args.NsfHostPrefix
+	environment.NsfHostSuffix = args.NsfHostSuffix
 
 	// Set up discovery service
 	discovery, err := envoy.NewDiscoveryService(
