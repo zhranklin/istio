@@ -316,7 +316,7 @@ func buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
 		env:            env,
 		proxy:          node,
 		proxyInstances: proxyInstances,
-		bind:           LocalhostAddress,
+		bind:           WildcardAddress,
 		port:           srcPort,
 		filterChainOpts: []*filterChainOpts{{
 			httpOpts: httpOpts,
