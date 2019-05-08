@@ -294,13 +294,6 @@ func (c *Controller) Services() ([]*model.Service, error) {
 	}
 	c.RUnlock()
 	sort.Slice(out, func(i, j int) bool { return out[i].Hostname < out[j].Hostname })
-	for _, v := range out {
-		if _, ok := v.Ports.GetByPort(8500); !ok {
-			println(v.Hostname + "+++++ no 8500")
-		} else {
-			println(v.Hostname + "+++++ has 8500")
-		}
-	}
 	return out, nil
 }
 
