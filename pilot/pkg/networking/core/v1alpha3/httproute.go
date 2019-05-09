@@ -269,10 +269,10 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 }
 func isK8SSvcHost(name string) bool {
 	strs := strings.Split(name, ".")
-	if strs[2] != "svc" {
+	if len(strs) != 5 {
 		return false
 	}
-	if len(strs) != 5 {
+	if strs[2] != "svc" {
 		return false
 	}
 	return true

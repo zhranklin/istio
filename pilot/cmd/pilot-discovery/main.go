@@ -163,8 +163,10 @@ func init() {
 		"Comma separated list of protocol default port")
 	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfUrlPrefix, "nsfUrlPrefix", "/proxy,/p,/hash,/chash,/least",
 		"Comma separated list of url prefix, which will be proccessed by PortMappingManager")
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostPrefix, "nsfHostPrefix", "", "")
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostSuffix, "nsfHostSuffix", "", "")
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostPrefix, "nsfHostPrefix", "",
+		"Prefix for exspansion domain")
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostSuffix, "nsfHostSuffix", "",
+		"Suffix for exspansion domain")
 
 	// Attach the Istio logging options to the command.
 	loggingOptions.AttachCobraFlags(rootCmd)
