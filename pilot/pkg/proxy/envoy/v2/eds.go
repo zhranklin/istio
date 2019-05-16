@@ -815,10 +815,38 @@ func (s *DiscoveryServer) loadAssignmentsForClusterIsolated(proxy *model.Proxy, 
 	}
 	edsInstances.With(prometheus.Labels{"cluster": clusterName}).Set(float64(cnt))
 
-	return &xdsapi.ClusterLoadAssignment{
+	l := &xdsapi.ClusterLoadAssignment{
 		ClusterName: clusterName,
 		Endpoints:   locEps,
-	}, true
+	}
+
+	//backup address
+	if s.Env.BackupAddress != "" {
+		if ok, address, port := checkAddress(s.Env.BackupAddress); ok {
+			host := util.BuildAddress(address, uint32(port))
+			ep := endpoint.LbEndpoint{
+				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+					Endpoint: &endpoint.Endpoint{
+						Address: &host,
+					},
+				},
+				LoadBalancingWeight: &types.UInt32Value{
+					Value: 1,
+				},
+			}
+			eps := []endpoint.LbEndpoint{ep}
+			l.Endpoints = append(l.Endpoints, endpoint.LocalityLbEndpoints{
+				LbEndpoints: eps,
+				LoadBalancingWeight: &types.UInt32Value{
+					Value: 1,
+				},
+				Priority: 1,
+			})
+		} else {
+			s.Env.BackupAddress = ""
+		}
+	}
+	return l, true
 }
 
 // pushEds is pushing EDS updates for a single connection. Called the first time
