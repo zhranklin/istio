@@ -3,6 +3,8 @@ pilot:
 stable-image: hub.c.163.com/qingzhou/pilot:e5438fe0f4d171302a5216d773abfc63477d949a
 1.支持调用方使用特殊格式URL进行调用，如：127.0.0.1:8550/service-name/path
   注意：该方式目前只支持http协议
+  
+
 1.1.5-yx 
 pilot:
 stable-image: hub.c.163.com/qingzhou/pilot:1.1.5-yx-1
