@@ -17,6 +17,7 @@ package v1alpha3
 import (
 	"encoding/json"
 	"fmt"
+	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	"reflect"
 	"sort"
 	"strconv"
@@ -236,7 +237,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 		for k, v := range env.PortManagerMap {
 			switch k {
 			case "http":
-				l := buildDefaultHttpPortMappingListener(v[0], v[1], env, node, proxyInstances)
+				l := configgen.buildDefaultHttpPortMappingListener(v[0], v[1], env, node, proxyInstances)
 				listeners = append(listeners, l)
 			}
 		}
@@ -304,9 +305,10 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 	return listeners, nil
 }
 
-func buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
+func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
 	env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance) *xdsapi.Listener {
-	log.Infof("build start")
+
+	//Step1: argments init
 	httpOpts := &httpListenerOpts{
 		useRemoteAddress: false,
 		direction:        http_conn.EGRESS,
@@ -324,7 +326,43 @@ func buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
 		bindToPort:      true,
 		skipUserFilters: true,
 	}
+	pluginParams := &plugin.InputParams{
+		Push:             env.PushContext,
+		ListenerProtocol: plugin.ListenerProtocolTCP,
+		ListenerCategory: networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND,
+		Env:              env,
+		Node:             node,
+		ProxyInstances:   proxyInstances,
+		Bind:             "",
+		Port: &model.Port{
+			Name:     "http_entry",
+			Port:     dstPort,
+			Protocol: model.Protocol("http"),
+		},
+		Service: &model.Service{
+			Hostname: model.Hostname("default"),
+		},
+	}
 	l := buildListener(opts)
+	mutable := &plugin.MutableObjects{
+		Listener:     l,
+		FilterChains: make([]plugin.FilterChain, len(l.FilterChains)),
+	}
+
+	//Step2: add mixer filter
+	for _, v := range configgen.Plugins {
+		if m, ok := v.(mixer.Mixerplugin); ok {
+			m.OnOutboundListener(pluginParams, mutable)
+		}
+	}
+
+	//Step3: build listener
+	err := buildCompleteFilterChain(pluginParams, mutable, opts)
+	if err != nil {
+		log.Errorf("error:%v", err)
+	}
+
+	//Step4: modify rds
 	rds := &http_conn.HttpConnectionManager_Rds{
 		Rds: &http_conn.Rds{
 			ConfigSource: core.ConfigSource{
@@ -335,6 +373,7 @@ func buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
 			RouteConfigName: httpOpts.rds,
 		},
 	}
+
 	filters := []*http_conn.HttpFilter{
 		{Name: xdsutil.CORS},
 		{Name: xdsutil.Fault},
@@ -346,18 +385,24 @@ func buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
 			Prefix: value,
 		}
 	}
-	l.FilterChains[0].Filters = append(l.FilterChains[0].Filters, listener.Filter{
-		Name: xdsutil.HTTPConnectionManager,
-		ConfigType: &listener.Filter_TypedConfig{
-			TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
-				CodecType:      http_conn.AUTO,
-				StatPrefix:     "http_default",
-				RouteSpecifier: rds,
-				HttpFilters:    filters,
-				UrlTransformer: urltransformers,
-			}),
-		},
-	})
+	for _, filterChains := range mutable.Listener.FilterChains {
+		for _, filter := range filterChains.Filters {
+			if filter.Name == xdsutil.HTTPConnectionManager {
+				filter = listener.Filter{
+					Name: xdsutil.HTTPConnectionManager,
+					ConfigType: &listener.Filter_TypedConfig{
+						TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
+							CodecType:      http_conn.AUTO,
+							StatPrefix:     "http_default",
+							RouteSpecifier: rds,
+							HttpFilters:    filters,
+							UrlTransformer: urltransformers,
+						}),
+					},
+				}
+			}
+		}
+	}
 	return l
 }
 
@@ -725,7 +770,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListeners(env *model.E
 
 		for _, service := range services {
 			for _, servicePort := range service.Ports {
-				log.Infof("host:%v, port:%d", service.Hostname, servicePort.Port)
 				listenerOpts := buildListenerOpts{
 					env:            env,
 					proxy:          node,
