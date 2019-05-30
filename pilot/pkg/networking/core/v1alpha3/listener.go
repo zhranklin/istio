@@ -17,6 +17,7 @@ package v1alpha3
 import (
 	"encoding/json"
 	"fmt"
+	types "github.com/gogo/protobuf/types"
 	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	"reflect"
 	"sort"
@@ -1576,6 +1577,9 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 			},
 		}
 		connectionManager.GenerateRequestId = proto.BoolTrue
+	}
+	connectionManager.AddUserAgent = &types.BoolValue{
+		Value: true,
 	}
 
 	return connectionManager
