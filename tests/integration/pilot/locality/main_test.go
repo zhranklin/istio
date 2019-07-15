@@ -16,6 +16,7 @@ package locality
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -23,10 +24,12 @@ import (
 	"text/template"
 	"time"
 
+	envoyAdmin "github.com/envoyproxy/go-control-plane/envoy/admin/v2alpha"
+
 	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
-	"istio.io/istio/pkg/test/framework/components/echo/echoboot"
 	"istio.io/istio/pkg/test/framework/components/environment"
 	"istio.io/istio/pkg/test/framework/components/galley"
 	"istio.io/istio/pkg/test/framework/components/istio"
@@ -34,6 +37,8 @@ import (
 	"istio.io/istio/pkg/test/framework/components/pilot"
 	"istio.io/istio/pkg/test/framework/label"
 	"istio.io/istio/pkg/test/framework/resource"
+	"istio.io/istio/pkg/test/util/retry"
+	"istio.io/istio/pkg/test/util/structpath"
 )
 
 const (
@@ -119,7 +124,8 @@ func init() {
 
 func TestMain(m *testing.M) {
 	framework.NewSuite("locality_prioritized_failover_loadbalancing", m).
-		Label(label.CustomSetup).
+		// TODO(https://github.com/istio/istio/issues/13812) remove flaky labels
+		Label(label.CustomSetup, label.Flaky).
 		SetupOnEnv(environment.Kube, istio.Setup(&ist, setupConfig)).
 		Setup(func(ctx resource.Context) (err error) {
 			if g, err = galley.New(ctx, galley.Config{}); err != nil {
@@ -139,17 +145,16 @@ func setupConfig(cfg *istio.Config) {
 		return
 	}
 	cfg.Values["pilot.env.PILOT_ENABLE_LOCALITY_LOAD_BALANCING"] = "true"
+	cfg.Values["pilot.autoscaleEnabled"] = "false"
 	cfg.Values["global.localityLbSetting.failover[0].from"] = "region"
 	cfg.Values["global.localityLbSetting.failover[0].to"] = "closeregion"
 }
 
-func newEcho(t *testing.T, ctx resource.Context, ns namespace.Instance, name string) echo.Instance {
-	t.Helper()
-	return echoboot.NewOrFail(t, ctx, echo.Config{
+func echoConfig(ns namespace.Instance, name string) echo.Config {
+	return echo.Config{
 		Service:   name,
 		Namespace: ns,
 		Locality:  "region.zone.subzone",
-		Sidecar:   true,
 		Ports: []echo.Port{
 			{
 				Name:        "http",
@@ -159,7 +164,7 @@ func newEcho(t *testing.T, ctx resource.Context, ns namespace.Instance, name str
 		},
 		Galley: g,
 		Pilot:  p,
-	})
+	}
 }
 
 type serviceConfig struct {
@@ -175,7 +180,7 @@ type serviceConfig struct {
 	NonExistantServiceLocality string
 }
 
-func deploy(t *testing.T, ns namespace.Instance, se serviceConfig) {
+func deploy(t test.Failer, ns namespace.Instance, se serviceConfig, from echo.Instance) {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := deploymentTemplate.Execute(&buf, se); err != nil {
@@ -183,13 +188,45 @@ func deploy(t *testing.T, ns namespace.Instance, se serviceConfig) {
 	}
 	g.ApplyConfigOrFail(t, ns, buf.String())
 
-	// TODO: find a better way to do this!
-	// This sleep allows config to propagate
-	time.Sleep(10 * time.Second)
+	err := WaitUntilRoute(from, se.Host)
+	if err != nil {
+		t.Fatalf("Failed to get expected route: %v", err)
+	}
 }
 
-func sendTraffic(t *testing.T, from echo.Instance /*to echo.Instance,*/, host string) {
-	t.Helper()
+// Wait for our route for the "fake" target to be established
+func WaitUntilRoute(c echo.Instance, dest string) error {
+	accept := func(cfg *envoyAdmin.ConfigDump) (bool, error) {
+		validator := structpath.ForProto(cfg)
+		if err := validator.
+			Exists("{.configs[*].dynamicRouteConfigs[*].routeConfig.virtualHosts[?(@.name == '%s')]}", dest+":80").
+			Check(); err != nil {
+			return false, err
+		}
+		clusterName := fmt.Sprintf("outbound|%d||%s", 80, dest)
+		if err := validator.
+			Exists("{.configs[*].dynamicActiveClusters[?(@.cluster.name == '%s')]}", clusterName).
+			Check(); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	workloads, _ := c.Workloads()
+	// Wait for the outbound config to be received by each workload from Pilot.
+	for _, w := range workloads {
+		if w.Sidecar() != nil {
+			if err := w.Sidecar().WaitForConfig(accept, retry.Timeout(time.Second*10)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func sendTraffic(ctx framework.TestContext, from echo.Instance, host string) {
+	ctx.Helper()
 	headers := http.Header{}
 	headers.Add("Host", host)
 	// This is a hack to remain infrastructure agnostic when running these tests
@@ -201,19 +238,19 @@ func sendTraffic(t *testing.T, from echo.Instance /*to echo.Instance,*/, host st
 		Count:    sendCount,
 	})
 	if err != nil {
-		t.Errorf("%s->%s failed sending: %v", from.Config().Service, host, err)
+		ctx.Errorf("%s->%s failed sending: %v", from.Config().Service, host, err)
 	}
 	if len(resp) != sendCount {
-		t.Errorf("%s->%s expected %d responses, received %d", from.Config().Service, host, sendCount, len(resp))
+		ctx.Errorf("%s->%s expected %d responses, received %d", from.Config().Service, host, sendCount, len(resp))
 	}
 	numFailed := 0
 	for i, r := range resp {
 		if match := bHostnameMatcher.FindString(r.Hostname); len(match) == 0 {
 			numFailed++
-			t.Errorf("%s->%s request[%d] made to unexpected service: %s", from.Config().Service, host, i, r.Hostname)
+			ctx.Errorf("%s->%s request[%d] made to unexpected service: %s", from.Config().Service, host, i, r.Hostname)
 		}
 	}
 	if numFailed > 0 {
-		t.Errorf("%s->%s total requests to unexpected service=%d/%d", from.Config().Service, host, numFailed, len(resp))
+		ctx.Errorf("%s->%s total requests to unexpected service=%d/%d", from.Config().Service, host, numFailed, len(resp))
 	}
 }

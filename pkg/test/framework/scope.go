@@ -15,7 +15,9 @@
 package framework
 
 import (
+	"fmt"
 	"io"
+	"sync"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -32,13 +34,21 @@ type scope struct {
 
 	resources []resource.Resource
 
+	closers []io.Closer
+
 	children []*scope
+
+	closeChan chan struct{}
+
+	// Mutex to lock changes to resources, children, and closers that can be done concurrently
+	mu sync.Mutex
 }
 
 func newScope(id string, p *scope) *scope {
 	s := &scope{
-		id:     id,
-		parent: p,
+		id:        id,
+		parent:    p,
+		closeChan: make(chan struct{}, 1),
 	}
 
 	if p != nil {
@@ -50,50 +60,61 @@ func newScope(id string, p *scope) *scope {
 
 func (s *scope) add(r resource.Resource, id *resourceID) {
 	scopes.Framework.Debugf("Adding resource for tracking: %v", id)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.resources = append(s.resources, r)
+
+	if c, ok := r.(io.Closer); ok {
+		s.addCloser(c)
+	}
+}
+
+func (s *scope) addCloser(c io.Closer) {
+	s.closers = append(s.closers, c)
 }
 
 func (s *scope) done(nocleanup bool) error {
 	scopes.Framework.Debugf("Begin cleaning up scope: %v", s.id)
+
+	// First, wait for all of the children to be done.
+	for _, c := range s.children {
+		c.waitForDone()
+	}
+
+	// Upon returning, notify the parent that we're done.
+	defer func() {
+		close(s.closeChan)
+	}()
+
 	var err error
 	if !nocleanup {
 
 		// Do reverse walk for cleanup.
-		for i := len(s.resources) - 1; i >= 0; i-- {
-			r := s.resources[i]
-			if closer, ok := r.(io.Closer); ok {
-				scopes.Framework.Debugf("Begin cleaning up resource: %v", r.ID())
-				if e := closer.Close(); e != nil {
-					scopes.Framework.Debugf("Error cleaning up resource %s: %v", r.ID(), e)
-					err = multierror.Append(e, err)
-				}
-				scopes.Framework.Debugf("Resource cleanup complete: %v", r.ID())
+		for i := len(s.closers) - 1; i >= 0; i-- {
+			c := s.closers[i]
+
+			name := "lambda"
+			if r, ok := c.(resource.Resource); ok {
+				name = fmt.Sprintf("resource %v", r.ID())
 			}
+
+			scopes.Framework.Debugf("Begin cleaning up %s", name)
+			if e := c.Close(); e != nil {
+				scopes.Framework.Debugf("Error cleaning up %s: %v", name, e)
+				err = multierror.Append(e, err)
+			}
+			scopes.Framework.Debugf("Cleanup complete for %s", name)
 		}
 	}
-	s.resources = nil // set resources to nil to avoid resetting them
-
-	if e := s.reset(); e != nil {
-		err = multierror.Append(err, e)
-	}
+	s.resources = nil
+	s.closers = nil
 
 	scopes.Framework.Debugf("Done cleaning up scope: %v", s.id)
 	return err
 }
 
-func (s *scope) reset() error {
-	var err error
-	for _, r := range s.resources {
-		if res, ok := r.(resource.Resetter); ok {
-			scopes.Framework.Debugf("Resetting resource: %s", r.ID())
-			if e := res.Reset(); e != nil {
-				scopes.Framework.Debugf("Error resetting resource %s: %v", r.ID(), e)
-				err = multierror.Append(e, err)
-			}
-		}
-	}
-
-	return err
+func (s *scope) waitForDone() {
+	<-s.closeChan
 }
 
 func (s *scope) dump() {

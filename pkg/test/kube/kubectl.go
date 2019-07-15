@@ -25,9 +25,9 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 
-	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/scopes"
 	"istio.io/istio/pkg/test/shell"
+	"istio.io/istio/pkg/test/util/yml"
 
 	kubeApiMeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -125,9 +125,9 @@ func (c *kubectl) deleteInternal(namespace string, files []string) (err error) {
 }
 
 // logs calls the logs command for the specified pod, with -c, if container is specified.
-func (c *kubectl) logs(namespace string, pod string, container string) (string, error) {
-	cmd := fmt.Sprintf("kubectl logs %s %s %s %s",
-		c.configArg(), namespaceArg(namespace), pod, containerArg(container))
+func (c *kubectl) logs(namespace string, pod string, container string, previousLog bool) (string, error) {
+	cmd := fmt.Sprintf("kubectl logs %s %s %s %s %s",
+		c.configArg(), namespaceArg(namespace), pod, containerArg(container), previousLogArg(previousLog))
 
 	s, err := shell.Execute(true, cmd)
 
@@ -209,7 +209,7 @@ func (c *kubectl) writeContentsToTempFile(contents string) (filename string, err
 }
 
 func (c *kubectl) splitContentsToFiles(content, filenamePrefix string) ([]string, error) {
-	cfgs := test.SplitConfigs(content)
+	cfgs := yml.SplitString(content)
 
 	namespacesAndCrds := &yamlDoc{
 		docType: namespacesAndCRDs,
@@ -280,6 +280,13 @@ func containerArg(container string) string {
 	return ""
 }
 
+func previousLogArg(previous bool) string {
+	if previous {
+		return fmt.Sprintf("-p")
+	}
+	return ""
+}
+
 func filenameWithoutExtension(fullPath string) string {
 	_, f := filepath.Split(fullPath)
 	return strings.TrimSuffix(f, filepath.Ext(fullPath))
@@ -298,7 +305,7 @@ type yamlDoc struct {
 }
 
 func (d *yamlDoc) append(c string) {
-	d.content = test.JoinConfigs(d.content, c)
+	d.content = yml.JoinString(d.content, c)
 }
 
 func (d *yamlDoc) toTempFile(workDir, fileNamePrefix string) (string, error) {

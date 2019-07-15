@@ -18,7 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/tests/integration/security/util"
+
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
@@ -39,37 +40,14 @@ func TestSdsVaultCaFlow(t *testing.T) {
 
 			istioCfg := istio.DefaultConfigOrFail(t, ctx)
 
-			systemNS := namespace.ClaimOrFail(t, ctx, istioCfg.SystemNamespace)
-			ns := namespace.NewOrFail(t, ctx, "reachability", true)
+			namespace.ClaimOrFail(t, ctx, istioCfg.SystemNamespace)
+			ns := namespace.NewOrFail(t, ctx, "sds-vault-flow", true)
 
-			ports := []echo.Port{
-				{
-					Name:     "http",
-					Protocol: model.ProtocolHTTP,
-				},
-				{
-					Name:     "tcp",
-					Protocol: model.ProtocolTCP,
-				},
-			}
-
-			a := echoboot.NewOrFail(t, ctx, echo.Config{
-				Service:   "a",
-				Namespace: ns,
-				Sidecar:   true,
-				Ports:     ports,
-				Galley:    g,
-				Pilot:     p,
-			})
-			b := echoboot.NewOrFail(t, ctx, echo.Config{
-				Service:        "b",
-				Namespace:      ns,
-				Ports:          ports,
-				Sidecar:        true,
-				ServiceAccount: true,
-				Galley:         g,
-				Pilot:          p,
-			})
+			var a, b echo.Instance
+			echoboot.NewBuilderOrFail(t, ctx).
+				With(&a, util.EchoConfig("a", ns, false, nil, g, p)).
+				With(&b, util.EchoConfig("b", ns, false, nil, g, p)).
+				BuildOrFail(t)
 
 			checkers := []connection.Checker{
 				{
@@ -83,16 +61,17 @@ func TestSdsVaultCaFlow(t *testing.T) {
 				},
 			}
 
-			// Apply the policy to the system namespace.
-			deployment := tmpl.EvaluateOrFail(t, file.AsStringOrFail(t, "testdata/global-mtls.yaml"),
+			// Apply the policy
+			deployment := tmpl.EvaluateOrFail(t, file.AsStringOrFail(t, "testdata/config.yaml"),
 				map[string]string{
 					"Namespace": ns.Name(),
 				})
-			g.ApplyConfigOrFail(t, systemNS, deployment)
-			defer g.DeleteConfigOrFail(t, systemNS, deployment)
 
-			// Sleep 3 seconds for the policy to take effect.
-			time.Sleep(3 * time.Second)
+			g.ApplyConfigOrFail(t, ns, deployment)
+			defer g.DeleteConfigOrFail(t, ns, deployment)
+
+			// Sleep 10 seconds for the policy to take effect.
+			time.Sleep(10 * time.Second)
 
 			for _, checker := range checkers {
 				retry.UntilSuccessOrFail(t, checker.Check, retry.Delay(time.Second), retry.Timeout(10*time.Second))

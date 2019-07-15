@@ -67,8 +67,18 @@ var (
 		annotations.Register(annotationStatus, "").Name: alwaysValidFunc,
 		annotations.Register(annotationRewriteAppHTTPProbers,
 			"Rewrite HTTP readiness and liveness probes to be redirected to istio-proxy sidecar").Name: alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/controlPlaneAuthPolicy", "").Name:               alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/discoveryAddress", "").Name:                     alwaysValidFunc,
 		annotations.Register("sidecar.istio.io/proxyImage", "").Name:                           alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/proxyCPU", "").Name:                             alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/proxyMemory", "").Name:                          alwaysValidFunc,
 		annotations.Register("sidecar.istio.io/interceptionMode", "").Name:                     validateInterceptionMode,
+		annotations.Register("sidecar.istio.io/bootstrapOverride", "").Name:                    alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/statsInclusionPrefixes", "").Name:               alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/statsInclusionSuffixes", "").Name:               alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/statsInclusionRegexps", "").Name:                alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/userVolume", "").Name:                           alwaysValidFunc,
+		annotations.Register("sidecar.istio.io/userVolumeMount", "").Name:                      alwaysValidFunc,
 		annotations.Register("status.sidecar.istio.io/port", "").Name:                          validateStatusPort,
 		annotations.Register("readiness.status.sidecar.istio.io/initialDelaySeconds", "").Name: validateUInt32,
 		annotations.Register("readiness.status.sidecar.istio.io/periodSeconds", "").Name:       validateUInt32,
@@ -78,6 +88,7 @@ var (
 		annotations.Register("traffic.sidecar.istio.io/excludeOutboundIPRanges", "").Name:      ValidateExcludeIPRanges,
 		annotations.Register("traffic.sidecar.istio.io/includeInboundPorts", "").Name:          ValidateIncludeInboundPorts,
 		annotations.Register("traffic.sidecar.istio.io/excludeInboundPorts", "").Name:          ValidateExcludeInboundPorts,
+		annotations.Register("traffic.sidecar.istio.io/excludeOutboundPorts", "").Name:         ValidateExcludeOutboundPorts,
 		annotations.Register("traffic.sidecar.istio.io/kubevirtInterfaces", "").Name:           alwaysValidFunc,
 	}
 )
@@ -140,6 +151,7 @@ const (
 type SidecarInjectionSpec struct {
 	// RewriteHTTPProbe indicates whether Kubernetes HTTP prober in the PodSpec
 	// will be rewritten to be redirected by pilot agent.
+	PodRedirectAnnot    map[string]string             `yaml:"podRedirectAnnot"`
 	RewriteAppHTTPProbe bool                          `yaml:"rewriteAppHTTPProbe"`
 	InitContainers      []corev1.Container            `yaml:"initContainers"`
 	Containers          []corev1.Container            `yaml:"containers"`
@@ -196,6 +208,9 @@ type Params struct {
 	// Comma separated list of inbound ports. If set, inbound traffic will not be redirected for those ports.
 	// Exclusions are only applied if configured to redirect all inbound traffic. By default, no ports are excluded.
 	ExcludeInboundPorts string `json:"excludeInboundPorts"`
+	// Comma separated list of outbound ports. If set, outbound traffic will not be redirected for those ports.
+	// By default, no ports are excluded.
+	ExcludeOutboundPorts string `json:"excludeOutboundPorts"`
 	// Comma separated list of virtual interfaces whose inbound traffic (from VM) will be treated as outbound
 	// By default, no interfaces are configured.
 	KubevirtInterfaces           string                 `json:"kubevirtInterfaces"`
@@ -379,6 +394,11 @@ func ValidateExcludeInboundPorts(ports string) error {
 	return validatePortList("excludeInboundPorts", ports)
 }
 
+// ValidateExcludeInboundPorts validates the excludeInboundPorts parameter
+func ValidateExcludeOutboundPorts(ports string) error {
+	return validatePortList("excludeOutboundPorts", ports)
+}
+
 // validateStatusPort validates the statusPort parameter
 func validateStatusPort(port string) error {
 	if _, e := parsePort(port); e != nil {
@@ -536,7 +556,7 @@ func InjectionData(sidecarTemplate, valuesConfig, version string, deploymentMeta
 	values := map[string]interface{}{}
 	if err := yaml.Unmarshal([]byte(valuesConfig), &values); err != nil {
 		log.Infof("Failed to parse values config: %v [%v]\n", err, valuesConfig)
-		return nil, "", err
+		return nil, "", multierror.Prefix(err, "could not parse configuration values:")
 	}
 
 	data := SidecarTemplateData{
@@ -583,8 +603,10 @@ func InjectionData(sidecarTemplate, valuesConfig, version string, deploymentMeta
 
 	var sic SidecarInjectionSpec
 	if err := yaml.Unmarshal(bbuf.Bytes(), &sic); err != nil {
-		log.Warnf("Failed to unmarshall template %v %s", err, bbuf.String())
-		return nil, "", err
+		// This usually means an invalid injector template; we can't check
+		// the template itself because it is merely a string.
+		log.Warnf("Failed to unmarshal template %v %s", err, bbuf.String())
+		return nil, "", multierror.Prefix(err, "failed parsing generated injected YAML (check Istio sidecar injector configuration):")
 	}
 
 	// set sidecar --concurrency
@@ -756,6 +778,15 @@ func intoObject(sidecarTemplate string, valuesConfig string, meshconfig *meshcon
 		fmt.Fprintf(os.Stderr, "Skipping injection because %q has host networking enabled\n", metadata.Name) //nolint: errcheck
 		return out, nil
 	}
+	//skip injection for injected pods
+	if len(podSpec.Containers) > 1 {
+		for _, c := range podSpec.Containers {
+			if c.Name == ProxyContainerName {
+				fmt.Fprintf(os.Stderr, "Skipping injection because %q has injected %q sidecar already\n", metadata.Name, ProxyContainerName) //nolint: errcheck
+				return out, nil
+			}
+		}
+	}
 
 	spec, status, err := InjectionData(
 		sidecarTemplate,
@@ -794,6 +825,11 @@ func intoObject(sidecarTemplate string, valuesConfig string, meshconfig *meshcon
 	if metadata.Annotations == nil {
 		metadata.Annotations = make(map[string]string)
 	}
+
+	if len(spec.PodRedirectAnnot) != 0 {
+		rewriteCniPodSPec(metadata.Annotations, spec)
+	}
+
 	metadata.Annotations[annotationStatus] = status
 
 	return out, nil
@@ -946,4 +982,25 @@ func potentialPodName(metadata *metav1.ObjectMeta) string {
 		return metadata.GenerateName + "***** (actual name not yet known)"
 	}
 	return ""
+}
+
+// rewriteCniPodSPec will check if values from the sidecar injector Helm
+// values need to be inserted as Pod annotations so the CNI will apply
+// the proper redirection rules.
+func rewriteCniPodSPec(annotations map[string]string, spec *SidecarInjectionSpec) {
+
+	if spec == nil {
+		return
+	}
+	if len(spec.PodRedirectAnnot) == 0 {
+		return
+	}
+	for k := range annotationRegistry {
+		if spec.PodRedirectAnnot[k] != "" {
+			if annotations[k] == spec.PodRedirectAnnot[k] {
+				continue
+			}
+			annotations[k] = spec.PodRedirectAnnot[k]
+		}
+	}
 }

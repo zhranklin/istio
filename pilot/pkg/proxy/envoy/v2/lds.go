@@ -19,7 +19,6 @@ import (
 
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/gogo/protobuf/types"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"istio.io/istio/pilot/pkg/model"
 )
@@ -38,29 +37,28 @@ func (s *DiscoveryServer) pushLds(con *XdsConnection, push *model.PushContext, v
 	err = con.send(response)
 	if err != nil {
 		adsLog.Warnf("LDS: Send failure %s: %v", con.ConID, err)
-		pushes.With(prometheus.Labels{"type": "lds_senderr"}).Add(1)
+		ldsSendErrPushes.Increment()
 		return err
 	}
-	pushes.With(prometheus.Labels{"type": "lds"}).Add(1)
+	ldsPushes.Increment()
 
-	adsLog.Infof("LDS: PUSH for node:%s addr:%q listeners:%d %d", con.modelNode.ID, con.PeerAddr, len(rawListeners),
-		response.Size())
+	adsLog.Infof("LDS: PUSH for node:%s listeners:%d", con.modelNode.ID, len(rawListeners))
 	return nil
 }
 
 func (s *DiscoveryServer) generateRawListeners(con *XdsConnection, push *model.PushContext) ([]*xdsapi.Listener, error) {
 	rawListeners, err := s.ConfigGenerator.BuildListeners(s.Env, con.modelNode, push)
 	if err != nil {
-		adsLog.Warnf("LDS: Failed to generate listeners for node %s: %v", con.modelNode.ID, err)
-		pushes.With(prometheus.Labels{"type": "lds_builderr"}).Add(1)
+		adsLog.Warnf("LDS: Failed to generate listeners for node:%s: %v", con.modelNode.ID, err)
+		ldsBuildErrPushes.Increment()
 		return nil, err
 	}
 
 	for _, l := range rawListeners {
 		if err = l.Validate(); err != nil {
 			retErr := fmt.Errorf("LDS: Generated invalid listener for node %v: %v", con.modelNode, err)
-			adsLog.Errorf("LDS: Generated invalid listener for node %s: %v, %v", con.modelNode.ID, err, l)
-			pushes.With(prometheus.Labels{"type": "lds_builderr"}).Add(1)
+			adsLog.Errorf("LDS: Generated invalid listener for node:%s: %v, %v", con.modelNode.ID, err, l)
+			ldsBuildErrPushes.Increment()
 			// Generating invalid listeners is a bug.
 			// Panic instead of trying to recover from that, since we can't
 			// assume anything about the state.
@@ -80,7 +78,7 @@ func ldsDiscoveryResponse(ls []*xdsapi.Listener, version string) *xdsapi.Discove
 	for _, ll := range ls {
 		if ll == nil {
 			adsLog.Errora("Nil listener ", ll)
-			totalXDSInternalErrors.Add(1)
+			totalXDSInternalErrors.Increment()
 			continue
 		}
 		lr, _ := types.MarshalAny(ll)

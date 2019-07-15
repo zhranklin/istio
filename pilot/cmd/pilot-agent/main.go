@@ -33,18 +33,19 @@ import (
 	"github.com/spf13/cobra/doc"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
+	"istio.io/pkg/collateral"
+	"istio.io/pkg/env"
+	"istio.io/pkg/log"
+	"istio.io/pkg/version"
+
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
+	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/proxy"
 	"istio.io/istio/pilot/pkg/proxy/envoy"
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pkg/cmd"
-	"istio.io/istio/pkg/features/pilot"
 	"istio.io/istio/pkg/spiffe"
-	"istio.io/pkg/collateral"
-	"istio.io/pkg/env"
-	"istio.io/pkg/log"
-	"istio.io/pkg/version"
 )
 
 var (
@@ -55,38 +56,34 @@ var (
 	applicationPorts []string
 
 	// proxy config flags (named identically)
-	configPath                 string
-	controlPlaneBootstrap      bool
-	binaryPath                 string
-	serviceCluster             string
-	drainDuration              time.Duration
-	parentShutdownDuration     time.Duration
-	discoveryAddress           string
-	zipkinAddress              string
-	lightstepAddress           string
-	lightstepAccessToken       string
-	lightstepSecure            bool
-	lightstepCacertPath        string
-	datadogAgentAddress        string
-	connectTimeout             time.Duration
-	statsdUDPAddress           string
-	envoyMetricsServiceAddress string
-	proxyAdminPort             uint16
-	controlPlaneAuthPolicy     string
-	customConfigFile           string
-	proxyLogLevel              string
-	proxyComponentLogLevel     string
-	concurrency                int
-	templateFile               string
-	disableInternalTelemetry   bool
-	tlsServerCertChain         string
-	tlsServerKey               string
-	tlsServerRootCert          string
-	tlsClientCertChain         string
-	tlsClientKey               string
-	tlsClientRootCert          string
-	tlsCertsToWatch            []string
-	loggingOptions             = log.DefaultOptions()
+	configPath                   string
+	controlPlaneBootstrap        bool
+	binaryPath                   string
+	serviceCluster               string
+	drainDuration                time.Duration
+	parentShutdownDuration       time.Duration
+	discoveryAddress             string
+	zipkinAddress                string
+	lightstepAddress             string
+	lightstepAccessToken         string
+	lightstepSecure              bool
+	lightstepCacertPath          string
+	datadogAgentAddress          string
+	connectTimeout               time.Duration
+	statsdUDPAddress             string
+	envoyMetricsServiceAddress   string
+	envoyAccessLogServiceAddress string
+	proxyAdminPort               uint16
+	controlPlaneAuthPolicy       string
+	customConfigFile             string
+	proxyLogLevel                string
+	proxyComponentLogLevel       string
+	dnsRefreshRate               string
+	concurrency                  int
+	templateFile                 string
+	disableInternalTelemetry     bool
+	tlsCertsToWatch              []string
+	loggingOptions               = log.DefaultOptions()
 
 	wg sync.WaitGroup
 
@@ -101,11 +98,19 @@ var (
 		Short:        "Istio Pilot agent.",
 		Long:         "Istio Pilot agent runs in the sidecar or gateway container and bootstraps Envoy.",
 		SilenceUsage: true,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 	}
 
 	proxyCmd = &cobra.Command{
 		Use:   "proxy",
 		Short: "Envoy proxy agent",
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 		RunE: func(c *cobra.Command, args []string) error {
 			cmd.PrintFlags(c.Flags())
 			if err := log.Configure(loggingOptions); err != nil {
@@ -132,9 +137,9 @@ var (
 			}
 
 			// Obtain all the IPs from the node
-			if ipAddr, ok := proxy.GetPrivateIPs(context.Background()); ok {
-				log.Infof("Obtained private IP %v", ipAddr)
-				role.IPAddresses = append(role.IPAddresses, ipAddr...)
+			if ipAddrs, ok := proxy.GetPrivateIPs(context.Background()); ok {
+				log.Infof("Obtained private IP %v", ipAddrs)
+				role.IPAddresses = append(role.IPAddresses, ipAddrs...)
 			}
 
 			// No IP addresses provided, append 127.0.0.1 for ipv4 and ::1 for ipv6
@@ -159,30 +164,9 @@ var (
 			role.TrustDomain = spiffe.GetTrustDomain()
 			log.Infof("Proxy role: %#v", role)
 
-			// Add cert paths as node metadata only if they differ from defaults
-			if tlsServerCertChain != model.DefaultCertChain {
-				role.Metadata[model.NodeMetadataTLSServerCertChain] = tlsServerCertChain
-			}
-			if tlsServerKey != model.DefaultKey {
-				role.Metadata[model.NodeMetadataTLSServerKey] = tlsServerKey
-			}
-			if tlsServerRootCert != model.DefaultRootCert {
-				role.Metadata[model.NodeMetadataTLSServerRootCert] = tlsServerRootCert
-			}
-
-			if tlsClientCertChain != model.DefaultCertChain {
-				role.Metadata[model.NodeMetadataTLSClientCertChain] = tlsClientCertChain
-			}
-			if tlsClientKey != model.DefaultKey {
-				role.Metadata[model.NodeMetadataTLSClientKey] = tlsClientKey
-			}
-			if tlsClientRootCert != model.DefaultRootCert {
-				role.Metadata[model.NodeMetadataTLSClientRootCert] = tlsClientRootCert
-			}
-
 			tlsCertsToWatch = []string{
 				tlsServerCertChain, tlsServerKey, tlsServerRootCert,
-				tlsClientCertChain, tlsClientKey, tlsClientCertChain,
+				tlsClientCertChain, tlsClientKey, tlsClientRootCert,
 			}
 
 			// dedupe cert paths so we don't set up 2 watchers for the same file:
@@ -201,6 +185,7 @@ var (
 			proxyConfig.ConnectTimeout = types.DurationProto(connectTimeout)
 			proxyConfig.StatsdUdpAddress = statsdUDPAddress
 			proxyConfig.EnvoyMetricsServiceAddress = envoyMetricsServiceAddress
+			proxyConfig.EnvoyAccessLogServiceAddress = envoyAccessLogServiceAddress
 			proxyConfig.ProxyAdminPort = int32(proxyAdminPort)
 			proxyConfig.Concurrency = int32(concurrency)
 
@@ -376,6 +361,7 @@ var (
 					StatusPort:         statusPort,
 					ApplicationPorts:   parsedPorts,
 					KubeAppHTTPProbers: prober,
+					NodeType:           role.Type,
 				})
 				if err != nil {
 					return err
@@ -385,8 +371,8 @@ var (
 
 			log.Infof("PilotSAN %#v", pilotSAN)
 
-			envoyProxy := envoy.NewProxy(proxyConfig, role.ServiceNode(), proxyLogLevel, proxyComponentLogLevel, pilotSAN, role.IPAddresses)
-			agent := proxy.NewAgent(envoyProxy, proxy.DefaultRetry, pilot.TerminationDrainDuration())
+			envoyProxy := envoy.NewProxy(proxyConfig, role.ServiceNode(), proxyLogLevel, proxyComponentLogLevel, pilotSAN, role.IPAddresses, dnsRefreshRate)
+			agent := proxy.NewAgent(envoyProxy, proxy.DefaultRetry, features.TerminationDrainDuration())
 			watcher := envoy.NewWatcher(tlsCertsToWatch, agent.ConfigCh())
 
 			go waitForCompletion(ctx, agent.Run)
@@ -545,6 +531,8 @@ func init() {
 		"IP Address and Port of a statsd UDP listener (e.g. 10.75.241.127:9125)")
 	proxyCmd.PersistentFlags().StringVar(&envoyMetricsServiceAddress, "envoyMetricsServiceAddress", values.EnvoyMetricsServiceAddress,
 		"Host and Port of an Envoy Metrics Service API implementation (e.g. metrics-service:15000)")
+	proxyCmd.PersistentFlags().StringVar(&envoyAccessLogServiceAddress, "envoyAccessLogServiceAddress", values.EnvoyAccessLogServiceAddress,
+		"Host and Port of an Envoy gRPC Access Log Service API implementation (e.g. accesslog-service.istio-system:15000)")
 	proxyCmd.PersistentFlags().Uint16Var(&proxyAdminPort, "proxyAdminPort", uint16(values.ProxyAdminPort),
 		"Port on which Envoy should listen for administrative commands")
 	proxyCmd.PersistentFlags().StringVar(&controlPlaneAuthPolicy, "controlPlaneAuthPolicy",
@@ -558,6 +546,8 @@ func init() {
 	// See https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-component-log-level
 	proxyCmd.PersistentFlags().StringVar(&proxyComponentLogLevel, "proxyComponentLogLevel", "misc:error",
 		"The component log level used to start the Envoy proxy")
+	proxyCmd.PersistentFlags().StringVar(&dnsRefreshRate, "dnsRefreshRate", "300s",
+		"The dns_refresh_rate for bootstrap STRICT_DNS clusters")
 	proxyCmd.PersistentFlags().IntVar(&concurrency, "concurrency", int(values.Concurrency),
 		"number of worker threads to run")
 	proxyCmd.PersistentFlags().StringVar(&templateFile, "templateFile", "",
@@ -566,22 +556,6 @@ func init() {
 		"Disable internal telemetry")
 	proxyCmd.PersistentFlags().BoolVar(&controlPlaneBootstrap, "controlPlaneBootstrap", true,
 		"Process bootstrap provided via templateFile to be used by control plane components.")
-
-	// server certs
-	proxyCmd.PersistentFlags().StringVar(&tlsServerCertChain, "tlsServerCertChain",
-		model.DefaultCertChain, "Absolute path to server cert-chain file used for istio mTLS")
-	proxyCmd.PersistentFlags().StringVar(&tlsServerKey, "tlsServerKey",
-		model.DefaultKey, "Absolute path to server private key file used for istio mTLS")
-	proxyCmd.PersistentFlags().StringVar(&tlsServerRootCert, "tlsServerRootCert",
-		model.DefaultRootCert, "Absolute path to server root cert file used for istio mTLS")
-
-	// client certs
-	proxyCmd.PersistentFlags().StringVar(&tlsClientCertChain, "tlsClientCertChain",
-		model.DefaultCertChain, "Absolute path to client cert-chain file used for istio mTLS")
-	proxyCmd.PersistentFlags().StringVar(&tlsClientKey, "tlsSClientKey",
-		model.DefaultKey, "Absolute path to client key file used for istio mTLS")
-	proxyCmd.PersistentFlags().StringVar(&tlsClientRootCert, "tlsClientRootCert",
-		model.DefaultRootCert, "Absolute path to client root cert file used for istio mTLS")
 
 	// Attach the Istio logging options to the command.
 	loggingOptions.AttachCobraFlags(rootCmd)

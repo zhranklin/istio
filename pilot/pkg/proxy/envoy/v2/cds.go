@@ -19,9 +19,9 @@ import (
 
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/gogo/protobuf/types"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"istio.io/istio/pilot/pkg/model"
+	authn_model "istio.io/istio/pilot/pkg/security/model"
 )
 
 // clusters aggregate a DiscoveryResponse for pushing.
@@ -59,31 +59,31 @@ func (s *DiscoveryServer) pushCds(con *XdsConnection, push *model.PushContext, v
 	err = con.send(response)
 	if err != nil {
 		adsLog.Warnf("CDS: Send failure %s: %v", con.ConID, err)
-		pushes.With(prometheus.Labels{"type": "cds_senderr"}).Add(1)
+		cdsSendErrPushes.Increment()
 		return err
 	}
-	pushes.With(prometheus.Labels{"type": "cds"}).Add(1)
+	cdsPushes.Increment()
 
 	// The response can't be easily read due to 'any' marshaling.
-	adsLog.Infof("CDS: PUSH %s for %s %q, Clusters: %d, Services %d", version,
-		con.ConID, con.PeerAddr, len(rawClusters), len(push.Services(nil)))
+	adsLog.Infof("CDS: PUSH for node:%s clusters:%d services:%d version:%s",
+		con.modelNode.ID, len(rawClusters), len(push.Services(nil)), version)
 	return nil
 }
 
 func (s *DiscoveryServer) generateRawClusters(node *model.Proxy, push *model.PushContext) ([]*xdsapi.Cluster, error) {
 	rawClusters, err := s.ConfigGenerator.BuildClusters(s.Env, node, push)
 	if err != nil {
-		adsLog.Warnf("CDS: Failed to generate clusters for node %s: %v", node.ID, err)
-		pushes.With(prometheus.Labels{"type": "cds_builderr"}).Add(1)
+		adsLog.Warnf("CDS: Failed to generate clusters for node:%s: %v", node.ID, err)
+		cdsBuildErrPushes.Increment()
 		return nil, err
 	}
 
 	for _, c := range rawClusters {
 		if err = c.Validate(); err != nil {
 			retErr := fmt.Errorf("CDS: Generated invalid cluster for node %v: %v", node, err)
-			adsLog.Errorf("CDS: Generated invalid cluster for node %s: %v, %v", node.ID, err, c)
-			pushes.With(prometheus.Labels{"type": "cds_builderr"}).Add(1)
-			totalXDSInternalErrors.Add(1)
+			adsLog.Errorf("CDS: Generated invalid cluster for node:%s: %v, %v", node.ID, err, c)
+			cdsBuildErrPushes.Increment()
+			totalXDSInternalErrors.Increment()
 			// Generating invalid clusters is a bug.
 			// Panic instead of trying to recover from that, since we can't
 			// assume anything about the state.
@@ -105,10 +105,10 @@ func SetTokenPathForSdsFromProxyMetadata(c *xdsapi.Cluster, node *model.Proxy) {
 					for _, svc := range sc.GetSdsConfig().GetApiConfigSource().GetGrpcServices() {
 						// If no call-credential in the cluster, no need to set SDS token path
 						if svc.GetGoogleGrpc() != nil && svc.GetGoogleGrpc().GetCallCredentials() != nil &&
-							svc.GetGoogleGrpc().GetCredentialsFactoryName() == model.FileBasedMetadataPlugName {
+							svc.GetGoogleGrpc().GetCredentialsFactoryName() == authn_model.FileBasedMetadataPlugName {
 							adsLog.Debugf("Set SDS token path in TLS context based on the proxy metadata")
 							svc.GetGoogleGrpc().CallCredentials =
-								model.ConstructgRPCCallCredentials(sdsTokenPath, model.K8sSAJwtTokenHeaderKey)
+								authn_model.ConstructgRPCCallCredentials(sdsTokenPath, authn_model.K8sSAJwtTokenHeaderKey)
 						}
 					}
 				}
@@ -125,10 +125,10 @@ func SetTokenPathForSdsFromProxyMetadata(c *xdsapi.Cluster, node *model.Proxy) {
 				for _, svc := range sc.GetSdsConfig().GetApiConfigSource().GetGrpcServices() {
 					// If no call-credential in the cluster, no need to set SDS token path
 					if svc.GetGoogleGrpc() != nil && svc.GetGoogleGrpc().GetCallCredentials() != nil &&
-						svc.GetGoogleGrpc().GetCredentialsFactoryName() == model.FileBasedMetadataPlugName {
+						svc.GetGoogleGrpc().GetCredentialsFactoryName() == authn_model.FileBasedMetadataPlugName {
 						adsLog.Debugf("Set SDS token path in validation context based on the proxy metadata")
 						svc.GetGoogleGrpc().CallCredentials =
-							model.ConstructgRPCCallCredentials(sdsTokenPath, model.K8sSAJwtTokenHeaderKey)
+							authn_model.ConstructgRPCCallCredentials(sdsTokenPath, authn_model.K8sSAJwtTokenHeaderKey)
 					}
 				}
 			}

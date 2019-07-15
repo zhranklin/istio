@@ -25,10 +25,11 @@ import (
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 
+	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core"
-	"istio.io/istio/pilot/pkg/serviceregistry/kube"
-	"istio.io/istio/pkg/features/pilot"
+	authn_model "istio.io/istio/pilot/pkg/security/model"
+	"istio.io/istio/pilot/pkg/serviceregistry/kube/controller"
 )
 
 var (
@@ -70,8 +71,8 @@ const (
 )
 
 func init() {
-	DebounceAfter = pilot.DebounceAfter
-	DebounceMax = pilot.DebounceMax
+	DebounceAfter = features.DebounceAfter
+	DebounceMax = features.DebounceMax
 }
 
 // DiscoveryServer is Pilot's gRPC implementation for Envoy's v2 xds APIs
@@ -90,7 +91,7 @@ type DiscoveryServer struct {
 	ConfigController model.ConfigStoreCache
 
 	// KubeController provides readiness info (if initial sync is complete)
-	KubeController *kube.Controller
+	KubeController *controller.Controller
 
 	// rate limiter for sending updates during full ads push.
 	rateLimiter *rate.Limiter
@@ -173,13 +174,13 @@ func NewDiscoveryServer(
 	env *model.Environment,
 	generator core.ConfigGenerator,
 	ctl model.Controller,
-	kuebController *kube.Controller,
+	kubeController *controller.Controller,
 	configCache model.ConfigStoreCache) *DiscoveryServer {
 	out := &DiscoveryServer{
 		Env:                     env,
 		ConfigGenerator:         generator,
 		ConfigController:        configCache,
-		KubeController:          kuebController,
+		KubeController:          kubeController,
 		EndpointShardsByService: map[string]*EndpointShards{},
 		WorkloadsByID:           map[string]*Workload{},
 		edsUpdates:              map[string]struct{}{},
@@ -200,7 +201,7 @@ func NewDiscoveryServer(
 	}
 
 	// Flush cached discovery responses when detecting jwt public key change.
-	model.JwtKeyResolver.PushFunc = out.ClearCache
+	authn_model.JwtKeyResolver.PushFunc = out.ClearCache
 
 	if configCache != nil {
 		// TODO: changes should not trigger a full recompute of LDS/RDS/CDS/EDS
@@ -211,10 +212,10 @@ func NewDiscoveryServer(
 		}
 	}
 
-	out.DebugConfigs = pilot.DebugConfigs
+	out.DebugConfigs = features.DebugConfigs
 
-	pushThrottle := pilot.PushThrottle
-	pushBurst := pilot.PushBurst
+	pushThrottle := features.PushThrottle
+	pushBurst := features.PushBurst
 
 	adsLog.Infof("Starting ADS server with rateLimiter=%d burst=%d", pushThrottle, pushBurst)
 	out.rateLimiter = rate.NewLimiter(rate.Limit(pushThrottle), pushBurst)
@@ -240,7 +241,7 @@ func (s *DiscoveryServer) Start(stopCh <-chan struct{}) {
 // ( will be removed after change detection is implemented, to double check all changes are
 // captured)
 func (s *DiscoveryServer) periodicRefresh(stopCh <-chan struct{}) {
-	periodicRefreshDuration := pilot.RefreshDuration
+	periodicRefreshDuration := features.RefreshDuration
 	if periodicRefreshDuration == 0 {
 		return
 	}
@@ -249,7 +250,7 @@ func (s *DiscoveryServer) periodicRefresh(stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-ticker.C:
-			adsLog.Debugf("ADS: periodic push of envoy configs %s", versionInfo())
+			adsLog.Debugf("ADS: Periodic push of envoy configs version:%s", versionInfo())
 			s.AdsPushAll(versionInfo(), s.globalPushContext(), true, nil)
 		case <-stopCh:
 			return
@@ -283,7 +284,6 @@ func (s *DiscoveryServer) periodicRefreshMetrics(stopCh <-chan struct{}) {
 // to avoid direct dependencies.
 func (s *DiscoveryServer) Push(full bool, edsUpdates map[string]struct{}) {
 	if !full {
-		adsLog.Infof("XDS Incremental Push EDS:%d", len(edsUpdates))
 		go s.AdsPushAll(versionInfo(), s.globalPushContext(), false, edsUpdates)
 		return
 	}
@@ -298,9 +298,9 @@ func (s *DiscoveryServer) Push(full bool, edsUpdates map[string]struct{}) {
 	push := model.NewPushContext()
 	err := push.InitContext(s.Env)
 	if err != nil {
-		adsLog.Errorf("XDS: failed to update services %v", err)
+		adsLog.Errorf("XDS: Failed to update services: %v", err)
 		// We can't push if we can't read the data - stick with previous version.
-		pushContextErrors.Inc()
+		pushContextErrors.Increment()
 		return
 	}
 
@@ -371,6 +371,7 @@ func (s *DiscoveryServer) clearCache() {
 // ConfigUpdate implements ConfigUpdater interface, used to request pushes.
 // It replaces the 'clear cache' from v1.
 func (s *DiscoveryServer) ConfigUpdate(full bool) {
+	inboundConfigUpdates.Increment()
 	s.updateChannel <- &updateReq{full: full}
 }
 
@@ -384,7 +385,6 @@ func (s *DiscoveryServer) handleUpdates(stopCh <-chan struct{}) {
 	var startDebounce time.Time
 	var lastConfigUpdateTime time.Time
 
-	configUpdateCounter := 0
 	pushCounter := 0
 
 	debouncedEvents := 0
@@ -399,7 +399,6 @@ func (s *DiscoveryServer) handleUpdates(stopCh <-chan struct{}) {
 				startDebounce = lastConfigUpdateTime
 			}
 			debouncedEvents++
-			configUpdateCounter++
 			// fullPush is sticky if any debounced event requires a fullPush
 			if r.full {
 				fullPush = true

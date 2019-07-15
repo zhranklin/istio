@@ -16,10 +16,10 @@ package framework
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"testing"
 
 	"istio.io/istio/pkg/test"
@@ -33,6 +33,7 @@ import (
 // TestContext is a test-level context that can be created as part of test executing tests.
 type TestContext interface {
 	resource.Context
+	test.Failer
 
 	// NewSubTest creates a new sub-test under the current running Test. The lifecycle of a sub-Test is scoped to the
 	// parent. Calls to Done() will block until all children are also Done(). When Run, sub-Tests will automatically
@@ -53,6 +54,9 @@ type TestContext interface {
 	// RequireOrSkip skips the test if the environment is not as expected.
 	RequireOrSkip(envName environment.Name)
 
+	// WhenDone runs the given function when the test context completes.
+	WhenDone(fn func() error)
+
 	// Done should be called when this context is no longer needed. It triggers the asynchronous cleanup of any
 	// allocated resources.
 	Done()
@@ -60,11 +64,7 @@ type TestContext interface {
 	// Methods for interacting with the underlying *testing.T.
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
-	Fail()
-	FailNow()
 	Failed() bool
-	Fatal(args ...interface{})
-	Fatalf(format string, args ...interface{})
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
 	Name() string
@@ -72,9 +72,6 @@ type TestContext interface {
 	SkipNow()
 	Skipf(format string, args ...interface{})
 	Skipped() bool
-	Parallel()
-	IsParallel() bool
-	Helper()
 }
 
 var _ TestContext = &testContext{}
@@ -89,7 +86,7 @@ type testContext struct {
 	test *Test
 
 	// The underlying Go testing.T for this context.
-	goTest *testing.T
+	*testing.T
 
 	// suite-level context
 	suite *suiteContext
@@ -125,7 +122,7 @@ func newTestContext(test *Test, goTest *testing.T, s *suiteContext, parentScope 
 	return &testContext{
 		id:      id,
 		test:    test,
-		goTest:  goTest,
+		T:       goTest,
 		suite:   s,
 		scope:   newScope(scopeID, parentScope),
 		workDir: workDir,
@@ -165,7 +162,7 @@ func (c *testContext) CreateDirectory(name string) (string, error) {
 func (c *testContext) CreateDirectoryOrFail(name string) string {
 	tmp, err := c.CreateDirectory(name)
 	if err != nil {
-		c.goTest.Fatalf("Error creating  directory with name %q: %v", name, err)
+		c.Fatalf("Error creating  directory with name %q: %v", name, err)
 	}
 	return tmp
 }
@@ -185,14 +182,14 @@ func (c *testContext) CreateTmpDirectory(prefix string) (string, error) {
 func (c *testContext) CreateTmpDirectoryOrFail(prefix string) string {
 	tmp, err := c.CreateTmpDirectory(prefix)
 	if err != nil {
-		c.goTest.Fatalf("Error creating temp directory with prefix %q: %v", prefix, err)
+		c.Fatalf("Error creating temp directory with prefix %q: %v", prefix, err)
 	}
 	return tmp
 }
 
 func (c *testContext) RequireOrSkip(envName environment.Name) {
 	if c.Environment().EnvironmentName() != envName {
-		c.goTest.Skipf("Skipping %q: expected environment not found: %s", c.goTest.Name(), envName)
+		c.Skipf("Skipping %q: expected environment not found: %s", c.Name(), envName)
 	}
 }
 
@@ -216,8 +213,12 @@ func (c *testContext) NewSubTest(name string) *Test {
 	}
 }
 
+func (c *testContext) WhenDone(fn func() error) {
+	c.scope.addCloser(&closer{fn})
+}
+
 func (c *testContext) Done() {
-	if c.goTest.Failed() {
+	if c.Failed() {
 		scopes.Framework.Debugf("Begin dumping testContext: %q", c.id)
 		c.scope.dump()
 		scopes.Framework.Debugf("Completed dumping testContext: %q", c.id)
@@ -225,82 +226,87 @@ func (c *testContext) Done() {
 
 	scopes.Framework.Debugf("Begin cleaning up testContext: %q", c.id)
 	if err := c.scope.done(c.suite.settings.NoCleanup); err != nil {
-		c.goTest.Logf("error scope cleanup: %v", err)
+		c.Logf("error scope cleanup: %v", err)
 	}
 	scopes.Framework.Debugf("Completed cleaning up testContext: %q", c.id)
 }
 
 func (c *testContext) Error(args ...interface{}) {
-	c.goTest.Error(args...)
+	c.Helper()
+	c.T.Error(args...)
 }
 
 func (c *testContext) Errorf(format string, args ...interface{}) {
-	c.goTest.Errorf(format, args...)
+	c.Helper()
+	c.T.Errorf(format, args...)
 }
 
 func (c *testContext) Fail() {
-	c.goTest.Fail()
+	c.Helper()
+	c.T.Fail()
 }
 
 func (c *testContext) FailNow() {
-	c.goTest.FailNow()
+	c.Helper()
+	c.T.FailNow()
 }
 
 func (c *testContext) Failed() bool {
-	return c.goTest.Failed()
+	c.Helper()
+	return c.T.Failed()
 }
 
 func (c *testContext) Fatal(args ...interface{}) {
-	c.goTest.Error(args...)
+	c.Helper()
+	c.T.Fatal(args...)
 }
 
 func (c *testContext) Fatalf(format string, args ...interface{}) {
-	c.goTest.Fatalf(format, args...)
+	c.Helper()
+	c.T.Fatalf(format, args...)
 }
 
 func (c *testContext) Log(args ...interface{}) {
-	c.goTest.Log(args...)
+	c.Helper()
+	c.T.Log(args...)
 }
 
 func (c *testContext) Logf(format string, args ...interface{}) {
-	c.goTest.Logf(format, args...)
+	c.Helper()
+	c.T.Logf(format, args...)
 }
 
 func (c *testContext) Name() string {
-	return c.goTest.Name()
+	c.Helper()
+	return c.T.Name()
 }
 
 func (c *testContext) Skip(args ...interface{}) {
-	c.goTest.Skip(args...)
+	c.Helper()
+	c.T.Skip(args...)
 }
 
 func (c *testContext) SkipNow() {
-	c.goTest.SkipNow()
+	c.Helper()
+	c.T.SkipNow()
 }
 
 func (c *testContext) Skipf(format string, args ...interface{}) {
-	c.goTest.Skipf(format, args...)
+	c.Helper()
+	c.T.Skipf(format, args...)
 }
 
 func (c *testContext) Skipped() bool {
-	return c.goTest.Skipped()
+	c.Helper()
+	return c.T.Skipped()
 }
 
-func (c *testContext) Parallel() {
-	// TODO(https://github.com/istio/istio/issues/13915)
-	//c.goTest.Parallel()
-	panic("TestContext.Parallel() not currently supported: https://github.com/istio/istio/issues/13915")
+var _ io.Closer = &closer{}
+
+type closer struct {
+	fn func() error
 }
 
-func (c *testContext) Helper() {
-	c.goTest.Helper()
-}
-
-func (c *testContext) IsParallel() bool {
-	return isParallel(c.goTest)
-}
-
-func isParallel(t *testing.T) bool {
-	// nolint: copylocks
-	return reflect.ValueOf(*t).FieldByName("isParallel").Bool()
+func (c *closer) Close() error {
+	return c.fn()
 }

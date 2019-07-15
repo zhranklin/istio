@@ -2,19 +2,14 @@ module istio.io/istio
 
 go 1.12
 
-replace cloud.google.com/go/contextgraph/apiv1alpha1 => ./mixer/adapter/stackdriver/vendor/cloud.google.com/go/contextgraph/apiv1alpha1
-
-replace google.golang.org/genproto/googleapis/cloud/contextgraph/v1alpha1 => ./mixer/adapter/stackdriver/vendor/google.golang.org/genproto/googleapis/cloud/contextgraph/v1alpha1
-
-replace google.golang.org/genproto/googleapis/graphservice => ./mixer/adapter/stackdriver/vendor/google.golang.org/genproto/googleapis/graphservice
-
 replace github.com/golang/glog => github.com/istio/glog v0.0.0-20190424172949-d7cfb6fa2ccd
 
 replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
 
+replace github.com/spf13/viper => github.com/istio/viper v1.3.3-0.20190515210538-2789fed3109c
+
 require (
 	cloud.google.com/go v0.37.4
-	cloud.google.com/go/contextgraph/apiv1alpha1 v0.0.0
 	code.cloudfoundry.org/copilot v0.0.0-20180808174356-6bade2a0677a
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.6.0
@@ -49,7 +44,9 @@ require (
 	github.com/dchest/siphash v1.1.0 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20190423183735-731ef375ac02 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
-	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/docker v1.13.1
+	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docker/spdystream v0.0.0-20170912183627-bc6354cbbc29 // indirect
 	github.com/dropbox/godropbox v0.0.0-20190501155911-5749d3b71cbe // indirect
@@ -58,8 +55,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20190421051319-9d40249d3c2f // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20190421051319-9d40249d3c2f // indirect
 	github.com/emicklei/go-restful v2.6.0+incompatible
-	github.com/envoyproxy/go-control-plane v0.7.0
-	github.com/envoyproxy/protoc-gen-validate v0.0.14 // indirect
+	github.com/envoyproxy/go-control-plane v0.8.2
 	github.com/evanphx/json-patch v3.0.0+incompatible
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/stackerr v0.0.0-20150612192056-c2fcf88613f4 // indirect
@@ -74,8 +70,8 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gocql/gocql v0.0.0-20190423091413-b99afaf3b163 // indirect
-	github.com/gogo/googleapis v0.0.0-20180223154316-0cd9801be74a
-	github.com/gogo/protobuf v1.2.0
+	github.com/gogo/googleapis v1.1.0
+	github.com/gogo/protobuf v1.2.1
 	github.com/gogo/status v1.0.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20180203143532-66deaeb636df // indirect
@@ -108,7 +104,6 @@ require (
 	github.com/hashicorp/go-rootcerts v0.0.0-20160503143440-6bb64b370b90 // indirect
 	github.com/hashicorp/go-uuid v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.2.0 // indirect
-	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce // indirect
 	github.com/hashicorp/memberlist v0.1.3 // indirect
 	github.com/hashicorp/serf v0.8.1 // indirect
 	github.com/hashicorp/vault v0.10.0
@@ -123,11 +118,12 @@ require (
 	github.com/juju/testing v0.0.0-20190429233213-dfc56b8c09fc // indirect
 	github.com/keybase/go-crypto v0.0.0-20190416182011-b785b22cc757 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/lestrrat-go/jwx v0.9.0
 	github.com/lib/pq v1.1.1 // indirect
-	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/lukechampine/freeze v0.0.0-20160818180733-f514e08ae5a0
+	github.com/mitchellh/copystructure v1.0.0
 	github.com/mitchellh/go-homedir v0.0.0-20161203194507-b8bc1bf76747
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
-	github.com/mitchellh/mapstructure v0.0.0-20180220230111-00c29f56e238 // indirect
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
@@ -162,6 +158,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3
+	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
 	github.com/tinylib/msgp v1.0.2 // indirect
 	github.com/uber/jaeger-client-go v0.0.0-20190228190846-ecf2d03a9e80
@@ -173,26 +170,25 @@ require (
 	go.uber.org/atomic v1.4.0
 	go.uber.org/multierr v1.1.0
 	go.uber.org/zap v1.10.0
-	golang.org/x/net v0.0.0-20190311183353-d8887717615a
+	golang.org/x/net v0.0.0-20190503192946-f4e77d36d62c
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
 	golang.org/x/tools v0.0.0-20190328211700-ab21143f2384
 	google.golang.org/api v0.3.1
 	google.golang.org/genproto v0.0.0-20190404172233-64821d5d2107
-	google.golang.org/genproto/googleapis/cloud/contextgraph/v1alpha1 v0.0.0
-	google.golang.org/genproto/googleapis/graphservice v0.0.0 // indirect
 	google.golang.org/grpc v1.20.1
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/logfmt.v0 v0.3.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
 	gopkg.in/ory-am/dockertest.v3 v3.3.4 // indirect
-	gopkg.in/square/go-jose.v2 v2.0.0-20180411045311-89060dee6a84 // indirect
+	gopkg.in/square/go-jose.v2 v2.0.0-20180411045311-89060dee6a84
 	gopkg.in/stack.v1 v1.7.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 	gotest.tools v2.2.0+incompatible // indirect
-	istio.io/api v0.0.0-20190405142752-6b8d1849e7f4
-	istio.io/pkg v0.0.0-20190513000936-0187f41267ce
+	istio.io/api v0.0.0-20190708200418-70f6e4eada00
+	istio.io/pkg v0.0.0-20190710182420-c26792dead42
+	istio.io/gogo-genproto v0.0.0-20190614210408-e88dc8b0e4db
 	k8s.io/api v0.0.0-20190222213804-5cb15d344471
 	k8s.io/apiextensions-apiserver v0.0.0-20190221221350-bfb440be4b87
 	k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628
@@ -201,5 +197,5 @@ require (
 	k8s.io/helm v2.9.1+incompatible
 	k8s.io/klog v0.3.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20180216212618-50ae88d24ede // indirect
-	sigs.k8s.io/yaml v1.1.0 // indirect
+	sigs.k8s.io/yaml v1.1.0
 )

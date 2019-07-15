@@ -34,7 +34,6 @@ var (
 func TestMain(m *testing.M) {
 	framework.
 		NewSuite("reachability_test", m).
-		RequireEnvironment(environment.Kube).
 		SetupOnEnv(environment.Kube, istio.Setup(&ist, nil)).
 		Setup(func(ctx resource.Context) (err error) {
 			if g, err = galley.New(ctx, galley.Config{}); err != nil {

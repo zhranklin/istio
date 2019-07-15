@@ -34,7 +34,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -48,38 +48,40 @@ import (
 	mcpapi "istio.io/api/mcp/v1alpha1"
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	istio_networking_v1alpha3 "istio.io/api/networking/v1alpha3"
+	"istio.io/pkg/ctrlz"
+	"istio.io/pkg/env"
+	"istio.io/pkg/filewatcher"
+	"istio.io/pkg/log"
+	"istio.io/pkg/version"
+
 	"istio.io/istio/pilot/cmd"
 	configaggregate "istio.io/istio/pilot/pkg/config/aggregate"
 	"istio.io/istio/pilot/pkg/config/clusterregistry"
 	"istio.io/istio/pilot/pkg/config/coredatamodel"
-	"istio.io/istio/pilot/pkg/config/kube/crd"
+	"istio.io/istio/pilot/pkg/config/kube/crd/controller"
 	"istio.io/istio/pilot/pkg/config/kube/ingress"
 	"istio.io/istio/pilot/pkg/config/memory"
 	configmonitor "istio.io/istio/pilot/pkg/config/monitor"
+	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
 	istio_networking "istio.io/istio/pilot/pkg/networking/core"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pilot/pkg/networking/util"
 	"istio.io/istio/pilot/pkg/proxy/envoy"
 	envoyv2 "istio.io/istio/pilot/pkg/proxy/envoy/v2"
+	authn_model "istio.io/istio/pilot/pkg/security/model"
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pilot/pkg/serviceregistry/consul"
 	"istio.io/istio/pilot/pkg/serviceregistry/external"
-	"istio.io/istio/pilot/pkg/serviceregistry/kube"
+	controller2 "istio.io/istio/pilot/pkg/serviceregistry/kube/controller"
 	srmemory "istio.io/istio/pilot/pkg/serviceregistry/memory"
-	"istio.io/istio/pkg/features/pilot"
 	istiokeepalive "istio.io/istio/pkg/keepalive"
 	kubelib "istio.io/istio/pkg/kube"
 	configz "istio.io/istio/pkg/mcp/configz/client"
 	"istio.io/istio/pkg/mcp/creds"
 	"istio.io/istio/pkg/mcp/monitoring"
 	"istio.io/istio/pkg/mcp/sink"
-	"istio.io/pkg/ctrlz"
-	"istio.io/pkg/env"
-	"istio.io/pkg/filewatcher"
-	"istio.io/pkg/log"
-	"istio.io/pkg/version"
 )
 
 const (
@@ -90,6 +92,12 @@ const (
 
 	// DefaultMCPMaxMsgSize is the default maximum message size
 	DefaultMCPMaxMsgSize = 1024 * 1024 * 4
+
+	// DefaultMCPInitialWindowSize is the default InitialWindowSize value for the gRPC connection.
+	DefaultMCPInitialWindowSize = 1024 * 1024
+
+	// DefaultMCPInitialConnWindowSize is the default Initial ConnWindowSize value for the gRPC connection.
+	DefaultMCPInitialConnWindowSize = 1024 * 1024
 
 	// URL types supported by the config store
 	// example fs:///tmp/configroot
@@ -142,7 +150,7 @@ type MeshArgs struct {
 type ConfigArgs struct {
 	ClusterRegistriesNamespace string
 	KubeConfig                 string
-	ControllerOptions          kube.ControllerOptions
+	ControllerOptions          controller2.Options
 	FileDir                    string
 	DisableInstallCRDs         bool
 
@@ -165,17 +173,19 @@ type ServiceArgs struct {
 
 // PilotArgs provides all of the configuration parameters for the Pilot discovery service.
 type PilotArgs struct {
-	DiscoveryOptions   envoy.DiscoveryServiceOptions
-	Namespace          string
-	Mesh               MeshArgs
-	Config             ConfigArgs
-	Service            ServiceArgs
-	MeshConfig         *meshconfig.MeshConfig
-	NetworksConfigFile string
-	CtrlZOptions       *ctrlz.Options
-	Plugins            []string
-	MCPMaxMessageSize  int
-	KeepaliveOptions   *istiokeepalive.Options
+	DiscoveryOptions         envoy.DiscoveryServiceOptions
+	Namespace                string
+	Mesh                     MeshArgs
+	Config                   ConfigArgs
+	Service                  ServiceArgs
+	MeshConfig               *meshconfig.MeshConfig
+	NetworksConfigFile       string
+	CtrlZOptions             *ctrlz.Options
+	Plugins                  []string
+	MCPMaxMessageSize        int
+	MCPInitialWindowSize     int
+	MCPInitialConnWindowSize int
+	KeepaliveOptions         *istiokeepalive.Options
 	// ForceStop is set as true when used for testing to make the server stop quickly
 	ForceStop bool
 }
@@ -204,7 +214,7 @@ type Server struct {
 	secureGRPCServer *grpc.Server
 	istioConfigStore model.IstioConfigStore
 	mux              *http.ServeMux
-	kubeRegistry     *kube.Controller
+	kubeRegistry     *controller2.Controller
 	fileWatcher      filewatcher.FileWatcher
 }
 
@@ -398,8 +408,9 @@ func (s *Server) initMesh(args *PilotArgs) error {
 
 	if mesh == nil {
 		// Config file either wasn't specified or failed to load - use a default mesh.
-		if _, mesh, err = GetMeshConfig(s.kubeClient, kube.IstioNamespace, kube.IstioConfigMap); err != nil {
-			log.Warnf("failed to read the default mesh configuration: %v, from the %s config map in the %s namespace", err, kube.IstioConfigMap, kube.IstioNamespace)
+		if _, mesh, err = GetMeshConfig(s.kubeClient, controller2.IstioNamespace, controller2.IstioConfigMap); err != nil {
+			log.Warnf("failed to read the default mesh configuration: %v, from the %s config map in the %s namespace",
+				err, controller2.IstioConfigMap, controller2.IstioNamespace)
 			return err
 		}
 
@@ -435,7 +446,8 @@ func (s *Server) initMeshNetworks(args *PilotArgs) error { //nolint: unparam
 		return nil
 	}
 	log.Infof("mesh networks configuration %s", spew.Sdump(meshNetworks))
-	util.ResolveHostsInNetworksConfig(s.meshNetworks)
+	util.ResolveHostsInNetworksConfig(meshNetworks)
+	log.Infof("mesh networks configuration post-resolution %s", spew.Sdump(meshNetworks))
 	s.meshNetworks = meshNetworks
 
 	// Watch the networks config file for changes and reload if it got modified
@@ -448,7 +460,8 @@ func (s *Server) initMeshNetworks(args *PilotArgs) error { //nolint: unparam
 		}
 		if !reflect.DeepEqual(meshNetworks, s.meshNetworks) {
 			log.Infof("mesh networks configuration file updated to: %s", spew.Sdump(meshNetworks))
-			util.ResolveHostsInNetworksConfig(s.meshNetworks)
+			util.ResolveHostsInNetworksConfig(meshNetworks)
+			log.Infof("mesh networks configuration post-resolution %s", spew.Sdump(meshNetworks))
 			s.meshNetworks = meshNetworks
 			if s.kubeRegistry != nil {
 				s.kubeRegistry.InitNetworkLookup(meshNetworks)
@@ -497,9 +510,7 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 	clientNodeID := ""
 	collections := make([]sink.CollectionOptions, len(model.IstioConfigTypes))
 	for i, model := range model.IstioConfigTypes {
-		collections[i] = sink.CollectionOptions{
-			Name: model.Collection,
-		}
+		collections[i] = sink.CollectionOptions{model.Collection, false}
 	}
 
 	options := coredatamodel.Options{
@@ -601,8 +612,14 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 			Time:    args.KeepaliveOptions.Time,
 			Timeout: args.KeepaliveOptions.Timeout,
 		})
+
+		initialWindowSizeOption := grpc.WithInitialWindowSize(int32(args.MCPInitialWindowSize))
+		initialConnWindowSizeOption := grpc.WithInitialConnWindowSize(int32(args.MCPInitialConnWindowSize))
 		msgSizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(args.MCPMaxMessageSize))
-		conn, err := grpc.DialContext(ctx, configSource.Address, securityOption, msgSizeOption, keepaliveOption)
+
+		conn, err := grpc.DialContext(
+			ctx, configSource.Address,
+			securityOption, msgSizeOption, keepaliveOption, initialWindowSizeOption, initialConnWindowSizeOption)
 		if err != nil {
 			log.Errorf("Unable to dial MCP Server %q: %v", configSource.Address, err)
 			cancel()
@@ -732,7 +749,7 @@ func (s *Server) initConfigController(args *PilotArgs) error {
 
 func (s *Server) makeKubeConfigController(args *PilotArgs) (model.ConfigStoreCache, error) {
 	kubeCfgFile := s.getKubeCfgFile(args)
-	configClient, err := crd.NewClient(kubeCfgFile, "", model.IstioConfigTypes, args.Config.ControllerOptions.DomainSuffix)
+	configClient, err := controller.NewClient(kubeCfgFile, "", model.IstioConfigTypes, args.Config.ControllerOptions.DomainSuffix)
 	if err != nil {
 		return nil, multierror.Prefix(err, "failed to open a config client.")
 	}
@@ -743,7 +760,7 @@ func (s *Server) makeKubeConfigController(args *PilotArgs) (model.ConfigStoreCac
 		}
 	}
 
-	return crd.NewController(configClient, args.Config.ControllerOptions), nil
+	return controller.NewController(configClient, args.Config.ControllerOptions), nil
 }
 
 func (s *Server) makeFileMonitor(fileDir string, configController model.ConfigStore) error {
@@ -764,7 +781,7 @@ func (s *Server) createK8sServiceControllers(serviceControllers *aggregate.Contr
 	clusterID := string(serviceregistry.KubernetesRegistry)
 	log.Infof("Primary Cluster name: %s", clusterID)
 	args.Config.ControllerOptions.ClusterID = clusterID
-	kubectl := kube.NewController(s.kubeClient, args.Config.ControllerOptions)
+	kubectl := controller2.NewController(s.kubeClient, args.Config.ControllerOptions)
 	s.kubeRegistry = kubectl
 	serviceControllers.AddRegistry(
 		aggregate.Registry{
@@ -924,7 +941,7 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 
 	s.addStartFunc(func(stop <-chan struct{}) error {
 		go func() {
-			if pilot.EnableWaitCacheSync && !s.waitForCacheSync(stop) {
+			if features.EnableWaitCacheSync && !s.waitForCacheSync(stop) {
 				return
 			}
 
@@ -942,7 +959,7 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 
 			go func() {
 				<-stop
-				model.JwtKeyResolver.Close()
+				authn_model.JwtKeyResolver.Close()
 
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
@@ -976,7 +993,7 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 
 		s.addStartFunc(func(stop <-chan struct{}) error {
 			go func() {
-				if pilot.EnableWaitCacheSync && !s.waitForCacheSync(stop) {
+				if features.EnableWaitCacheSync && !s.waitForCacheSync(stop) {
 					return
 				}
 
@@ -1038,7 +1055,7 @@ func (s *Server) initGrpcServer(options *istiokeepalive.Options) {
 
 // initialize secureGRPCServer
 func (s *Server) initSecureGrpcServer(options *istiokeepalive.Options) error {
-	certDir := pilot.CertDir
+	certDir := features.CertDir
 	if certDir == "" {
 		certDir = PilotCertDir
 	}
@@ -1103,7 +1120,7 @@ func (s *Server) grpcServerOptions(options *istiokeepalive.Options) []grpc.Serve
 
 	// Temp setting, default should be enough for most supported environments. Can be used for testing
 	// envoy with lower values.
-	maxStreams := pilot.MaxConcurrentStreams
+	maxStreams := features.MaxConcurrentStreams
 
 	grpcOptions := []grpc.ServerOption{
 		grpc.UnaryInterceptor(middleware.ChainUnaryServer(interceptors...)),

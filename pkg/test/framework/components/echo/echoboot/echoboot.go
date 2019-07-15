@@ -17,33 +17,34 @@ package echoboot
 import (
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/framework/components/echo"
+	"istio.io/istio/pkg/test/framework/components/echo/docker"
 	"istio.io/istio/pkg/test/framework/components/echo/kube"
-	"istio.io/istio/pkg/test/framework/components/echo/native"
 	"istio.io/istio/pkg/test/framework/components/environment"
 	"istio.io/istio/pkg/test/framework/resource"
 )
 
-// New returns a new instance of echo.
-func New(ctx resource.Context, cfg echo.Config) (i echo.Instance, err error) {
+// NewBuilder for Echo Instances.
+func NewBuilder(ctx resource.Context) (b echo.Builder, err error) {
 	err = resource.UnsupportedEnvironment(ctx.Environment())
 
 	ctx.Environment().Case(environment.Native, func() {
-		i, err = native.New(ctx, cfg)
+		b = docker.NewBuilder(ctx)
+		err = nil
 	})
 
 	ctx.Environment().Case(environment.Kube, func() {
-		i, err = kube.New(ctx, cfg)
+		b = kube.NewBuilder(ctx)
+		err = nil
 	})
 	return
 }
 
-// NewOrFail returns a new instance of echo, or fails t if there is an error.
-func NewOrFail(t test.Failer, ctx resource.Context, cfg echo.Config) echo.Instance {
+// NewBuilder for Echo Instances.
+func NewBuilderOrFail(t test.Failer, ctx resource.Context) echo.Builder {
 	t.Helper()
-	i, err := New(ctx, cfg)
+	b, err := NewBuilder(ctx)
 	if err != nil {
-		t.Fatalf("echo.NewOrFail: %v", err)
+		t.Fatalf("echo.NewBuilderOrFail: %v", err)
 	}
-
-	return i
+	return b
 }

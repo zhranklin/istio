@@ -18,7 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/tests/integration/security/util"
+
 	"istio.io/istio/pkg/test/echo/common/scheme"
 	"istio.io/istio/pkg/test/framework"
 	"istio.io/istio/pkg/test/framework/components/echo"
@@ -26,9 +27,7 @@ import (
 	"istio.io/istio/pkg/test/framework/components/environment"
 	"istio.io/istio/pkg/test/framework/components/istio"
 	"istio.io/istio/pkg/test/framework/components/namespace"
-	"istio.io/istio/pkg/test/util/file"
 	"istio.io/istio/pkg/test/util/retry"
-	"istio.io/istio/pkg/test/util/tmpl"
 	"istio.io/istio/tests/integration/security/util/connection"
 )
 
@@ -39,37 +38,14 @@ func TestSdsCitadelCaFlow(t *testing.T) {
 
 			istioCfg := istio.DefaultConfigOrFail(t, ctx)
 
-			systemNS := namespace.ClaimOrFail(t, ctx, istioCfg.SystemNamespace)
-			ns := namespace.NewOrFail(t, ctx, "reachability", true)
+			namespace.ClaimOrFail(t, ctx, istioCfg.SystemNamespace)
+			ns := namespace.NewOrFail(t, ctx, "sds-citadel-flow", true)
 
-			ports := []echo.Port{
-				{
-					Name:     "http",
-					Protocol: model.ProtocolHTTP,
-				},
-				{
-					Name:     "tcp",
-					Protocol: model.ProtocolTCP,
-				},
-			}
-
-			a := echoboot.NewOrFail(t, ctx, echo.Config{
-				Service:   "a",
-				Namespace: ns,
-				Sidecar:   true,
-				Ports:     ports,
-				Galley:    g,
-				Pilot:     p,
-			})
-			b := echoboot.NewOrFail(t, ctx, echo.Config{
-				Service:        "b",
-				Namespace:      ns,
-				Ports:          ports,
-				Sidecar:        true,
-				ServiceAccount: true,
-				Galley:         g,
-				Pilot:          p,
-			})
+			var a, b echo.Instance
+			echoboot.NewBuilderOrFail(t, ctx).
+				With(&a, util.EchoConfig("a", ns, false, nil, g, p)).
+				With(&b, util.EchoConfig("b", ns, false, nil, g, p)).
+				BuildOrFail(t)
 
 			checkers := []connection.Checker{
 				{
@@ -83,16 +59,8 @@ func TestSdsCitadelCaFlow(t *testing.T) {
 				},
 			}
 
-			// Apply the policy to the system namespace.
-			deployment := tmpl.EvaluateOrFail(t, file.AsStringOrFail(t, "testdata/global-mtls.yaml"),
-				map[string]string{
-					"Namespace": ns.Name(),
-				})
-			g.ApplyConfigOrFail(t, systemNS, deployment)
-			defer g.DeleteConfigOrFail(t, systemNS, deployment)
-
-			// Sleep 3 seconds for the policy to take effect.
-			time.Sleep(3 * time.Second)
+			// Sleep 10 seconds for the policy to take effect.
+			time.Sleep(10 * time.Second)
 
 			for _, checker := range checkers {
 				retry.UntilSuccessOrFail(t, checker.Check, retry.Delay(time.Second), retry.Timeout(10*time.Second))

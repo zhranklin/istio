@@ -34,9 +34,10 @@ import (
 	"github.com/gogo/protobuf/types"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
-	"istio.io/istio/pilot/pkg/model"
-	"istio.io/istio/pkg/features/pilot"
 	"istio.io/pkg/log"
+
+	"istio.io/istio/pilot/pkg/features"
+	"istio.io/istio/pilot/pkg/model"
 )
 
 const (
@@ -188,9 +189,9 @@ func LocalityLbWeightNormalize(endpoints []endpoint.LocalityLbEndpoints) []endpo
 
 // GetByAddress returns a listener by its address
 // TODO(mostrowski): consider passing map around to save iteration.
-func GetByAddress(listeners []*xdsapi.Listener, addr string) *xdsapi.Listener {
+func GetByAddress(listeners []*xdsapi.Listener, addr core.Address) *xdsapi.Listener {
 	for _, listener := range listeners {
-		if listener != nil && listener.Address.String() == addr {
+		if listener != nil && listener.Address.Equal(addr) {
 			return listener
 		}
 	}
@@ -249,7 +250,7 @@ func IsProxyVersionGE11(node *model.Proxy) bool {
 
 // IsXDSMarshalingToAnyEnabled controls whether "marshaling to Any" feature is enabled.
 func IsXDSMarshalingToAnyEnabled(node *model.Proxy) bool {
-	return IsProxyVersionGE11(node) && !pilot.DisableXDSMarshalingToAny()
+	return IsProxyVersionGE11(node) && !features.DisableXDSMarshalingToAny()
 }
 
 // ResolveHostsInNetworksConfig will go through the Gateways addresses for all
@@ -264,6 +265,9 @@ func ResolveHostsInNetworksConfig(config *meshconfig.MeshNetworks) {
 			gwIP := net.ParseIP(gw.GetAddress())
 			if gwIP == nil {
 				addrs, err := net.LookupHost(gw.GetAddress())
+				if err != nil {
+					log.Warnf("error resolving host %#v: %v", gw.GetAddress(), err)
+				}
 				if err == nil && len(addrs) > 0 {
 					gw.Gw = &meshconfig.Network_IstioNetworkGateway_Address{
 						Address: addrs[0],
@@ -402,4 +406,35 @@ func IsHTTPFilterChain(filterChain listener.FilterChain) bool {
 		}
 	}
 	return false
+}
+
+// MergeAnyWithStruct merges a given struct into the given Any typed message by dynamically inferring the
+// type of Any, converting the struct into the inferred type, merging the two messages, and then
+// marshaling the merged message back into Any.
+func MergeAnyWithStruct(any *types.Any, pbStruct *types.Struct) (*types.Any, error) {
+	// Assuming that Pilot is compiled with this type [which should always be the case]
+	var err error
+	var x types.DynamicAny
+
+	// First get an object of type used by this message
+	if err = types.UnmarshalAny(any, &x); err != nil {
+		return nil, err
+	}
+
+	// Create a typed copy. We will convert the user's struct to this type
+	temp := proto.Clone(x.Message)
+	temp.Reset()
+	if err = xdsutil.StructToMessage(pbStruct, temp); err != nil {
+		return nil, err
+	}
+
+	// Merge the two typed protos
+	proto.Merge(x.Message, temp)
+	var retVal *types.Any
+	// Convert the merged proto back to any
+	if retVal, err = types.MarshalAny(x.Message); err != nil {
+		return nil, err
+	}
+
+	return retVal, nil
 }

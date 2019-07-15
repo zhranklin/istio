@@ -1,12 +1,19 @@
-# Istio
-
 [![CircleCI](https://circleci.com/gh/istio/istio.svg?style=shield)](https://circleci.com/gh/istio/istio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/istio/istio)](https://goreportcard.com/report/github.com/istio/istio)
 [![GoDoc](https://godoc.org/istio.io/istio?status.svg)](https://godoc.org/istio.io/istio)
 [![codecov.io](https://codecov.io/github/istio/istio/coverage.svg?branch=master)](https://codecov.io/github/istio/istio?branch=master)
 [![GolangCI](https://golangci.com/badges/github.com/istio/istio.svg)](https://golangci.com/r/github.com/istio/istio)
+[![Mergify Status](https://gh.mergify.io/badges/istio/istio.png?style=cut)](https://mergify.io)
+
+# Istio
 
 An open platform to connect, manage, and secure microservices.
+
+- For in-depth information about how to use Istio, visit [istio.io](https://istio.io)                                   
+- To ask questions and get assistance from our community, visit [discuss.istio.io](https://discuss.istio.io)
+- To learn how to participate in our overall community, visit [our community page](https://istio.io/about/community)
+
+In this README:
 
 - [Introduction](#introduction)
 - [Repositories](#repositories)
@@ -27,8 +34,6 @@ Istio is an open platform for providing a uniform way to integrate
 microservices, manage traffic flow across microservices, enforce policies
 and aggregate telemetry data. Istio's control plane provides an abstraction
 layer over the underlying cluster management platform, such as Kubernetes.
-
-Visit [istio.io](https://istio.io) for in-depth information about using Istio.
 
 Istio is composed of these components:
 

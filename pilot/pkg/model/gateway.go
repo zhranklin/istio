@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	networking "istio.io/api/networking/v1alpha3"
+	"istio.io/istio/pilot/pkg/monitoring"
 )
 
 // MergedGateway describes a set of gateways for a workload merged into a single logical gateway.
@@ -43,6 +44,25 @@ type MergedGateway struct {
 	RouteNamesByServer map[*networking.Server]string
 }
 
+var (
+	typeTag = monitoring.MustCreateTag("type")
+	nameTag = monitoring.MustCreateTag("name")
+
+	totalRejectedConfigs = monitoring.NewSum(
+		"pilot_total_rejected_configs",
+		"Total number of configs that Pilot had to reject or ignore.",
+		typeTag, nameTag,
+	)
+)
+
+func init() {
+	monitoring.MustRegisterViews(totalRejectedConfigs)
+}
+
+func recordRejectedConfig(gateway string) {
+	totalRejectedConfigs.With(typeTag.Value("gateway"), nameTag.Value(gateway)).Increment()
+}
+
 // MergeGateways combines multiple gateways targeting the same workload into a single logical Gateway.
 // Note that today any Servers in the combined gateways listening on the same port must have the same protocol.
 // If servers with different protocols attempt to listen on the same port, one of the protocols will be chosen at random.
@@ -55,6 +75,7 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 	serversByRouteName := make(map[string][]*networking.Server)
 	routeNamesByServer := make(map[*networking.Server]string)
 	gatewayNameForServer := make(map[*networking.Server]string)
+	tlsHostsByPort := map[uint32]map[string]struct{}{} // port -> host -> exists
 
 	log.Debugf("MergeGateways: merging %d gateways", len(gateways))
 	for _, config := range gateways {
@@ -68,6 +89,20 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 			gatewayNameForServer[s] = gatewayName
 			log.Debugf("MergeGateways: gateway %q processing server %v", gatewayName, s.Hosts)
 			protocol := ParseProtocol(s.Port.Protocol)
+
+			if s.Tls != nil {
+				// Envoy will reject config that has multiple filter chain matches with the same matching rules
+				// To avoid this, we need to make sure we don't have duplicated hosts, which will become
+				// SNI filter chain matches
+				if tlsHostsByPort[s.Port.Number] == nil {
+					tlsHostsByPort[s.Port.Number] = map[string]struct{}{}
+				}
+				if duplicateHosts := checkDuplicates(s.Hosts, tlsHostsByPort[s.Port.Number]); len(duplicateHosts) != 0 {
+					log.Debugf("skipping server on gateway %s, duplicate host names: %v", gatewayName, duplicateHosts)
+					recordRejectedConfig(gatewayName)
+					continue
+				}
+			}
 			if gatewayPorts[s.Port.Number] {
 				// We have two servers on the same port. Should we merge?
 				// 1. Yes if both servers are plain text and HTTP
@@ -81,12 +116,14 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 					if currentProto != protocol || !protocol.IsHTTP() {
 						log.Debugf("skipping server on gateway %s port %s.%d.%s: conflict with existing server %s.%d.%s",
 							config.Name, s.Port.Name, s.Port.Number, s.Port.Protocol, p[0].Port.Name, p[0].Port.Number, p[0].Port.Protocol)
+						recordRejectedConfig(gatewayName)
 						continue
 					}
 					routeName := gatewayRDSRouteName(s, config)
 					if routeName == "" {
 						log.Debugf("skipping server on gateway %s port %s.%d.%s: could not build RDS name from server",
 							config.Name, s.Port.Name, s.Port.Number, s.Port.Protocol)
+						recordRejectedConfig(gatewayName)
 						continue
 					}
 					serversByRouteName[routeName] = append(serversByRouteName[routeName], s)
@@ -99,6 +136,7 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 						if routeName == "" {
 							log.Debugf("skipping server on gateway %s port %s.%d.%s: could not build RDS name from server",
 								config.Name, s.Port.Name, s.Port.Number, s.Port.Protocol)
+							recordRejectedConfig(gatewayName)
 							continue
 						}
 
@@ -111,6 +149,7 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 						if _, exists := serversByRouteName[routeName]; exists {
 							log.Infof("skipping server on gateway %s port %s.%d.%s: non unique port name for HTTPS port",
 								config.Name, s.Port.Name, s.Port.Number, s.Port.Protocol)
+							recordRejectedConfig(gatewayName)
 							continue
 						}
 						serversByRouteName[routeName] = []*networking.Server{s}
@@ -122,6 +161,7 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 						log.Warnf("TLS server without TLS options %s %s", gatewayName, s.String())
 						continue
 					}
+
 					tlsServers[s.Port.Number] = append(tlsServers[s.Port.Number], s)
 				}
 			} else {
@@ -156,6 +196,24 @@ func MergeGateways(gateways ...Config) *MergedGateway {
 		ServersByRouteName:   serversByRouteName,
 		RouteNamesByServer:   routeNamesByServer,
 	}
+}
+
+// checkDuplicates returns all of the hosts provided that are already known
+// If there were no duplicates, all hosts are added to the known hosts.
+func checkDuplicates(hosts []string, knownHosts map[string]struct{}) []string {
+	var duplicates []string
+	for _, h := range hosts {
+		if _, found := knownHosts[h]; found {
+			duplicates = append(duplicates, h)
+		}
+	}
+	// No duplicates found, so we can mark all of these hosts as known
+	if len(duplicates) == 0 {
+		for _, h := range hosts {
+			knownHosts[h] = struct{}{}
+		}
+	}
+	return duplicates
 }
 
 // IsTLSServer returns true if this server is non HTTP, with some TLS settings for termination/passthrough
