@@ -294,7 +294,6 @@ func (c *Controller) Services() ([]*model.Service, error) {
 	}
 	c.RUnlock()
 	sort.Slice(out, func(i, j int) bool { return out[i].Hostname < out[j].Hostname })
-
 	return out, nil
 }
 

@@ -17,8 +17,11 @@ package v1alpha3
 import (
 	"encoding/json"
 	"fmt"
+	types "github.com/gogo/protobuf/types"
+	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,7 +33,7 @@ import (
 	accesslog "github.com/envoyproxy/go-control-plane/envoy/config/filter/accesslog/v2"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
-	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	"github.com/envoyproxy/go-control-plane/envoy/type"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	google_protobuf "github.com/gogo/protobuf/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -231,6 +234,15 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 				},
 			},
 		})
+
+		//Todo: support other protocol
+		for k, v := range env.PortManagerMap {
+			switch k {
+			case "http":
+				l := configgen.buildDefaultHttpPortMappingListener(v[0], v[1], env, node, proxyInstances)
+				listeners = append(listeners, l)
+			}
+		}
 	}
 
 	httpProxyPort := mesh.ProxyHttpPort
@@ -293,6 +305,107 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 	}
 
 	return listeners, nil
+}
+
+func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
+	env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance) *xdsapi.Listener {
+
+	//Step1: argments init
+	httpOpts := &httpListenerOpts{
+		useRemoteAddress: false,
+		direction:        http_conn.EGRESS,
+		rds:              strconv.Itoa(dstPort),
+	}
+	opts := buildListenerOpts{
+		env:            env,
+		proxy:          node,
+		proxyInstances: proxyInstances,
+		bind:           WildcardAddress,
+		port:           srcPort,
+		filterChainOpts: []*filterChainOpts{{
+			httpOpts: httpOpts,
+		}},
+		bindToPort:      true,
+		skipUserFilters: true,
+	}
+	pluginParams := &plugin.InputParams{
+		Push:             env.PushContext,
+		ListenerProtocol: plugin.ListenerProtocolTCP,
+		ListenerCategory: networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND,
+		Env:              env,
+		Node:             node,
+		ProxyInstances:   proxyInstances,
+		Bind:             "",
+		Port: &model.Port{
+			Name:     "http_entry",
+			Port:     dstPort,
+			Protocol: model.Protocol("http"),
+		},
+		Service: &model.Service{
+			Hostname: model.Hostname("default"),
+		},
+	}
+	l := buildListener(opts)
+	mutable := &plugin.MutableObjects{
+		Listener:     l,
+		FilterChains: make([]plugin.FilterChain, len(l.FilterChains)),
+	}
+
+	//Step2: add mixer filter
+	for _, v := range configgen.Plugins {
+		if m, ok := v.(mixer.Mixerplugin); ok {
+			m.OnOutboundListener(pluginParams, mutable)
+		}
+	}
+
+	//Step3: build listener
+	err := buildCompleteFilterChain(pluginParams, mutable, opts)
+	if err != nil {
+		log.Errorf("error:%v", err)
+	}
+
+	//Step4: modify rds
+	rds := &http_conn.HttpConnectionManager_Rds{
+		Rds: &http_conn.Rds{
+			ConfigSource: core.ConfigSource{
+				ConfigSourceSpecifier: &core.ConfigSource_Ads{
+					Ads: &core.AggregatedConfigSource{},
+				},
+			},
+			RouteConfigName: httpOpts.rds,
+		},
+	}
+
+	filters := []*http_conn.HttpFilter{
+		{Name: xdsutil.CORS},
+		{Name: xdsutil.Fault},
+		{Name: xdsutil.Router},
+	}
+	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
+	for i, value := range env.NsfUrlPrefix {
+		urltransformers[i] = &http_conn.UrlTransformer{
+			Prefix: value,
+		}
+	}
+	for _, filterChains := range mutable.Listener.FilterChains {
+		for _, filter := range filterChains.Filters {
+			if filter.Name == xdsutil.HTTPConnectionManager {
+				filter = listener.Filter{
+					Name: xdsutil.HTTPConnectionManager,
+					ConfigType: &listener.Filter_TypedConfig{
+						TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
+							CodecType:      http_conn.AUTO,
+							StatPrefix:     "http_default",
+							RouteSpecifier: rds,
+							HttpFilters:    filters,
+							UrlTransformer: urltransformers,
+						}),
+					},
+				}
+			}
+		}
+	}
+	return l
 }
 
 // buildSidecarInboundListeners creates listeners for the server-side (inbound)
@@ -659,7 +772,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListeners(env *model.E
 
 		for _, service := range services {
 			for _, servicePort := range service.Ports {
-
 				listenerOpts := buildListenerOpts{
 					env:            env,
 					proxy:          node,
@@ -1466,6 +1578,9 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 			},
 		}
 		connectionManager.GenerateRequestId = proto.BoolTrue
+	}
+	connectionManager.AddUserAgent = &types.BoolValue{
+		Value: true,
 	}
 
 	return connectionManager

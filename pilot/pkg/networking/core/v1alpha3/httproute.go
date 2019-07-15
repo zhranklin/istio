@@ -175,11 +175,16 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 			name := fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port)
 			if _, found := uniques[name]; !found {
 				uniques[name] = struct{}{}
-				virtualHosts = append(virtualHosts, route.VirtualHost{
-					Name:    name,
+				vh := route.VirtualHost{
+					Name:    fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port),
 					Domains: []string{host, fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port)},
 					Routes:  virtualHostWrapper.Routes,
-				})
+				}
+				if (push.Env.NsfHostPrefix != "" || push.Env.NsfHostSuffix != "") && isK8SSvcHost(host) {
+					serviceName := strings.Split(host, ".")[0]
+					vh.Domains = append(vh.Domains, push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix)
+				}
+				virtualHosts = append(virtualHosts, vh)
 			} else {
 				push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
 				log.Debugf("Dropping duplicate route entry %v.", name)
@@ -190,11 +195,16 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 			name := fmt.Sprintf("%s:%d", svc.Hostname, virtualHostWrapper.Port)
 			if _, found := uniques[name]; !found {
 				uniques[name] = struct{}{}
-				virtualHosts = append(virtualHosts, route.VirtualHost{
-					Name:    name,
+				vh := route.VirtualHost{
+					Name:    fmt.Sprintf("%s:%d", svc.Hostname, virtualHostWrapper.Port),
 					Domains: generateVirtualHostDomains(svc, virtualHostWrapper.Port, node),
 					Routes:  virtualHostWrapper.Routes,
-				})
+				}
+				if (push.Env.NsfHostPrefix != "" || push.Env.NsfHostSuffix != "") && isK8SSvcHost(string(svc.Hostname)) {
+					serviceName := strings.Split(string(svc.Hostname), ".")[0]
+					vh.Domains = append(vh.Domains, push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix)
+				}
+				virtualHosts = append(virtualHosts, vh)
 			} else {
 				push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
 				log.Debugf("Dropping duplicate route entry %v.", name)
@@ -270,6 +280,16 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 	}
 
 	return out
+}
+func isK8SSvcHost(name string) bool {
+	strs := strings.Split(name, ".")
+	if len(strs) != 5 {
+		return false
+	}
+	if strs[2] != "svc" {
+		return false
+	}
+	return true
 }
 
 // generateVirtualHostDomains generates the set of domain matches for a service being accessed from

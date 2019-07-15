@@ -38,7 +38,7 @@ import (
 	"istio.io/istio/pkg/log"
 )
 
-type mixerplugin struct{}
+type Mixerplugin struct{}
 
 type attribute = *mpb.Attributes_AttributeValue
 
@@ -81,14 +81,14 @@ const (
 
 // NewPlugin returns an ptr to an initialized mixer.Plugin.
 func NewPlugin() plugin.Plugin {
-	return mixerplugin{}
+	return Mixerplugin{}
 }
 
 // OnOutboundListener implements the Callbacks interface method.
-func (mixerplugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
-	if in.Env.Mesh.MixerCheckServer == "" && in.Env.Mesh.MixerReportServer == "" {
+func (Mixerplugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+	/*if in.Env.Mesh.MixerCheckServer == "" && in.Env.Mesh.MixerReportServer == "" {
 		return nil
-	}
+	}*/
 
 	attrs := attributes{
 		"source.uid":            attrUID(in.Node),
@@ -130,7 +130,7 @@ func (mixerplugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mu
 }
 
 // OnInboundListener implements the Callbacks interface method.
-func (mixerplugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+func (Mixerplugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 	if in.Env.Mesh.MixerCheckServer == "" && in.Env.Mesh.MixerReportServer == "" {
 		return nil
 	}
@@ -174,7 +174,7 @@ func (mixerplugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.Mut
 }
 
 // OnOutboundCluster implements the Plugin interface method.
-func (mixerplugin) OnOutboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
+func (Mixerplugin) OnOutboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
 	if !in.Env.Mesh.SidecarToTelemetrySessionAffinity {
 		// if session affinity is not enabled, do nothing
 		return
@@ -205,12 +205,12 @@ func (mixerplugin) OnOutboundCluster(in *plugin.InputParams, cluster *xdsapi.Clu
 }
 
 // OnInboundCluster implements the Plugin interface method.
-func (mixerplugin) OnInboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
+func (Mixerplugin) OnInboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
 	// do nothing
 }
 
 // OnOutboundRouteConfiguration implements the Plugin interface method.
-func (mixerplugin) OnOutboundRouteConfiguration(in *plugin.InputParams, routeConfiguration *xdsapi.RouteConfiguration) {
+func (Mixerplugin) OnOutboundRouteConfiguration(in *plugin.InputParams, routeConfiguration *xdsapi.RouteConfiguration) {
 	if in.Env.Mesh.MixerCheckServer == "" && in.Env.Mesh.MixerReportServer == "" {
 		return
 	}
@@ -224,7 +224,7 @@ func (mixerplugin) OnOutboundRouteConfiguration(in *plugin.InputParams, routeCon
 }
 
 // OnInboundRouteConfiguration implements the Plugin interface method.
-func (mixerplugin) OnInboundRouteConfiguration(in *plugin.InputParams, routeConfiguration *xdsapi.RouteConfiguration) {
+func (Mixerplugin) OnInboundRouteConfiguration(in *plugin.InputParams, routeConfiguration *xdsapi.RouteConfiguration) {
 	if in.Env.Mesh.MixerCheckServer == "" && in.Env.Mesh.MixerReportServer == "" {
 		return
 	}
@@ -253,7 +253,7 @@ func (mixerplugin) OnInboundRouteConfiguration(in *plugin.InputParams, routeConf
 }
 
 // OnInboundFilterChains is called whenever a plugin needs to setup the filter chains, including relevant filter chain configuration.
-func (mixerplugin) OnInboundFilterChains(in *plugin.InputParams) []plugin.FilterChain {
+func (Mixerplugin) OnInboundFilterChains(in *plugin.InputParams) []plugin.FilterChain {
 	return nil
 }
 
