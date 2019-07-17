@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 22
+number_of_entries: 24
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -189,6 +189,38 @@ cached. Translates to the <code>Access-Control-Max-Age</code> header.</p>
 (not the preflight) using credentials. Translates to
 <code>Access-Control-Allow-Credentials</code> header.</p>
 
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="DataSource">DataSource</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="DataSource-filename">
+<td><code>filename</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="DataSource-inlinebyte">
+<td><code>inlinebyte</code></td>
+<td><code>bytes</code></td>
+<td>
+</td>
+</tr>
+<tr id="DataSource-inlineString">
+<td><code>inlineString</code></td>
+<td><code>string</code></td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -890,6 +922,30 @@ provided in this field will replace the corresponding matched prefix.</p>
 
 </td>
 </tr>
+<tr id="HTTPRewrite-queryparams">
+<td><code>queryparams</code></td>
+<td><code>map&lt;string,&nbsp;string&gt;</code></td>
+<td>
+<p>rewrite the queryparams with this value</p>
+
+</td>
+</tr>
+<tr id="HTTPRewrite-body">
+<td><code>body</code></td>
+<td><code>string</code></td>
+<td>
+<p>rewrite the body with this value</p>
+
+</td>
+</tr>
+<tr id="HTTPRewrite-ext">
+<td><code>ext</code></td>
+<td><code>map&lt;string,&nbsp;string&gt;</code></td>
+<td>
+<p>rewrite the external varible</p>
+
+</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -944,7 +1000,7 @@ send a HTTP 301 redirect to a different URI or Authority.</p>
 <td><code>rewrite</code></td>
 <td><code><a href="#HTTPRewrite">HTTPRewrite</a></code></td>
 <td>
-<p>Rewrite HTTP URIs and Authority headers. Rewrite cannot be used with
+<p>Rewrite HTTP request. Rewrite cannot be used with
 Redirect primitive. Rewrite will be performed before forwarding.</p>
 
 </td>
@@ -1048,6 +1104,14 @@ field instead.</p>
 <td><code><a href="#Headers">Headers</a></code></td>
 <td>
 <p>Header manipulation rules</p>
+
+</td>
+</tr>
+<tr id="HTTPRoute-return">
+<td><code>return</code></td>
+<td><code><a href="#HttpReturn">HttpReturn</a></code></td>
+<td>
+<p>Customize Http Response</p>
 
 </td>
 </tr>
@@ -1265,6 +1329,36 @@ to the caller</p>
 <td><code>string[]</code></td>
 <td>
 <p>Remove a the specified headers</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="HttpReturn">HttpReturn</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="HttpReturn-code">
+<td><code>code</code></td>
+<td><code>int32</code></td>
+<td>
+<p>REQUIRED. HTTP status code.</p>
+
+</td>
+</tr>
+<tr id="HttpReturn-body">
+<td><code>body</code></td>
+<td><code><a href="#DataSource">DataSource</a></code></td>
+<td>
+<p>REQUIRED. response body.</p>
 
 </td>
 </tr>
