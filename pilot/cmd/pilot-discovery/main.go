@@ -142,7 +142,7 @@ func init() {
 		"Interval (in seconds) for polling the Consul service registry")
 
 	// using address, so it can be configured as localhost:.. (possibly UDS in future)
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.DiscoveryOptions.HTTPAddr, "httpAddr", ":8080",
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.DiscoveryOptions.HTTPAddr, "httpAddr", ":8081",
 		"Discovery service HTTP address")
 	discoveryCmd.PersistentFlags().StringVar(&serverArgs.DiscoveryOptions.GrpcAddr, "grpcAddr", ":15010",
 		"Discovery service grpc address")

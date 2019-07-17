@@ -372,7 +372,7 @@ message HTTPRoute {
   // send a HTTP 301 redirect to a different URI or Authority.
   HTTPRedirect redirect = 3;
 
-  // Rewrite HTTP URIs and Authority headers. Rewrite cannot be used with
+  // Rewrite HTTP request. Rewrite cannot be used with
   // Redirect primitive. Rewrite will be performed before forwarding.
   HTTPRewrite rewrite = 4;
 
@@ -426,8 +426,24 @@ message HTTPRoute {
 
   // Header manipulation rules
   Headers headers = 16;
+
+  // Customize Http Response
+  HttpReturn return = 17;
+}
+message HttpReturn {
+  // REQUIRED. HTTP status code.
+  int32 code = 1;
+
+  // REQUIRED. response body.
+  DataSource body = 2;
+
 }
 
+message DataSource{
+  string filename = 1;
+  bytes inlinebyte = 2;
+  string inlineString = 3;
+}
 // Header manipulation rules
 message Headers {
   // Header manipulation rules to apply before forwarding a request
@@ -867,6 +883,15 @@ message HTTPRewrite {
 
   // rewrite the Authority/Host header with this value.
   string authority = 2;
+
+  // rewrite the queryparams with this value
+  map<string,string> queryparams = 3;
+
+  // rewrite the body with this value
+  string  body = 4;
+
+  // rewrite the external varible
+  map<string,string> ext = 5;
 }
 
 // Describes how to match a given string in HTTP headers. Match is

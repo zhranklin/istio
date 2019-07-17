@@ -1005,7 +1005,7 @@ func validatePort(node *model.Proxy, i int, bindToPort bool) bool {
 // adds it to the listenerMap provided by the caller.  Listeners are added
 // if one doesn't already exist. HTTP listeners on same port are ignored
 // (as vhosts are shipped through RDS).  TCP listeners on same port are
-// allowed only if they have different CIDR matches.
+// allowed only if they have different CIDR matches.·
 func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(listenerOpts buildListenerOpts,
 	pluginParams *plugin.InputParams, listenerMap map[string]*outboundListenerEntry, virtualServices []model.Config) {
 
@@ -1220,7 +1220,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(l
 		// if and only if the filter chains have distinct conditions
 		// Extract the current filter chain matches
 		// For every new filter chain match being added, check if any previous match is same
-		// if so, skip adding this filter chain with a warning
+		// if so,  skip adding this filter chain with a warning
 		// This is very unoptimized.
 		newFilterChains := make([]listener.FilterChain, 0,
 			len(currentListenerEntry.listener.FilterChains)+len(mutable.Listener.FilterChains))
