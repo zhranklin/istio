@@ -1,0 +1,532 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "YsleJNTOLMqda0dV+RTRt4Go5tI=",
+			"origin": "istio.io/istio/mixer/adapter/stackdriver/vendor/cloud.google.com/go/contextgraph/apiv1alpha1",
+			"path": "cloud.google.com/go/contextgraph/apiv1alpha1",
+			"revision": "538c7e44b8681c70a685233c0beb0952da7b02a7",
+			"revisionTime": "2019-07-18T09:25:50Z"
+		},
+		{
+			"checksumSHA1": "U73EPbxe4KQIyLBQjNe9JGrEwJ0=",
+			"path": "github.com/envoyproxy/protoc-gen-validate/validate",
+			"revision": "00920a57af0ebef0bd2ff64996945d807870a577",
+			"revisionTime": "2019-05-04T01:19:10Z"
+		},
+		{
+			"checksumSHA1": "ldCKbEgeCDEpR46gav9UiOJBv6E=",
+			"path": "github.com/k0kubun/pp",
+			"revision": "ea9763a91366a414dccd02c8019a6dafe54829db",
+			"revisionTime": "2019-04-25T02:56:57Z"
+		},
+		{
+			"checksumSHA1": "3sBjOBjrog/ytGVy7+IyRMOMik8=",
+			"path": "github.com/mattn/go-colorable",
+			"revision": "c52ace132bf44798a21f16fdafaaafbf329519e2",
+			"revisionTime": "2019-07-08T05:42:20Z"
+		},
+		{
+			"checksumSHA1": "p/g8QEmoH6/jBQNFU0q2P9NcNKI=",
+			"path": "github.com/mattn/go-isatty",
+			"revision": "da60ac76bf7019a8b005f8dd1ad9d1a0e6434155",
+			"revisionTime": "2019-07-08T05:43:38Z"
+		},
+		{
+			"checksumSHA1": "TxrwwisuTyb+HFEfPRfik23t8VE=",
+			"path": "github.com/solo-io/gloo/pkg/utils",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "D37I7b3Gugq3D8HwRdxbi4g5Qmk=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "UqPD//Vl7wE8c+bTRukEhvzm3mk=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "7mn4fO7NMOdTy9EtCKARRieq9b8=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/aws",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "0jNQre109x4dt7yxgW+tMEpe1iQ=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/aws/glooec2",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "CqdSyoxNS4GorKDfUtxvh1tyfgE=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/azure",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "LFiLOqBjQ9c41GPLnz9B8SagcjY=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/consul",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "CvkHBmeillZPDuEvDVM4VGVaNdc=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/faultinjection",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "cyH6VZe5SJbulpUc2RULR25Hpcw=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/grpc",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "vnN5dy4FnpBZjzfLHWSepJQkm7E=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/grpc_web",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "qU6nk1tN9Tuqg+HbLXgeXOneoAI=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/hcm",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "6ozPJto6VtfX39qHJp8In4Cc3U8=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/kubernetes",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "j801PHrUc2gsi5rwQBvBczZes1Y=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/rest",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "NwAVsdQr2cjxWMn2+9pj7xAtjBE=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/retries",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "oT6lTx69PORG6VBcoITjJWmEp2E=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/static",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "9CoTB1kLKAGfDr3gkPbSowjsd78=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/stats",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "ZyMHf7sBgsnNLgSpfc5EWZATyZo=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/tcp",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "HlT/T4iiPKsa0EWkfe5txPBSBdY=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/transformation",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "YJ5Du82tgy4+YN4NB2EaEZv1yo4=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/defaults",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "yPaQUeyha4k6PZ5sG2t8YEGh95k=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/discovery",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "H2sg/XItxQ1R3m3bfiYfaBr3rzY=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/plugins",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "/+9qg+0I4ChsmPdu0vSZJcXUwf8=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/plugins/kubernetes",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "OnXfvr8/pOUub4sDR0xEmhnYaME=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/plugins/pluginutils",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "hZ6ZO15cYJzCtDRxD4QCHqNGpA0=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "aZrELSCO5vr5vSRqKwpgvUf7xc4=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "aAO1S1MQaA3gAPcgH8OqcKXAr0k=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/upstreams",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "cXEebIwkt7QDaREWpBLkqko49Hw=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/upstreams/consul",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "RleodhSJa6CerFdl6cLvpR+i7Wo=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/upstreams/kubernetes",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "WakdWWNjHj4QqlsszX6I5m+/N1w=",
+			"path": "github.com/solo-io/gloo/projects/gloo/pkg/xds",
+			"revision": "ad6d2077d071b31f5f94aa0eec6cd6e434af05f7",
+			"revisionTime": "2019-07-16T18:35:49Z"
+		},
+		{
+			"checksumSHA1": "+iinR3x0+2mzKajP2Qjs3J+LfUo=",
+			"path": "github.com/solo-io/go-utils/clicore/constants",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "TpH+abvt6usfc1vFSyaAe3zldws=",
+			"path": "github.com/solo-io/go-utils/contextutils",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "Hy2C0a+//lP7jtLeXLex23VM1LE=",
+			"path": "github.com/solo-io/go-utils/errors",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "QG2aANHqls5wOeJpoOUMxZpF1yw=",
+			"path": "github.com/solo-io/go-utils/errutils",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "QqvbSDLQAZcKrB8HFE31KW8mP7c=",
+			"path": "github.com/solo-io/go-utils/hashutils",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "j/5d9vlvVfy63siH9rbUGs07eiA=",
+			"path": "github.com/solo-io/go-utils/kubeutils",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "xCFRZnNz4e3N0vhFoTcd5GQ6SoQ=",
+			"path": "github.com/solo-io/go-utils/log",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "QpWvozZf0qco6O/bMb3IpiU/hsg=",
+			"path": "github.com/solo-io/go-utils/protoutils",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "UCbvinwP+h2WiUoc2cYp4VIAtcU=",
+			"path": "github.com/solo-io/go-utils/stringutils",
+			"revision": "284357fa7de31dce604403dbb3645a757ba574d4",
+			"revisionTime": "2019-07-17T22:18:53Z"
+		},
+		{
+			"checksumSHA1": "D+SOgtprgZbOQL3EYE4AzxhxRT8=",
+			"path": "github.com/solo-io/solo-kit/api/external/kubernetes/configmap",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "eyOhiOtVZEH6okbL+XaBVrSBP04=",
+			"path": "github.com/solo-io/solo-kit/api/external/kubernetes/customresourcedefinition",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "nFviIIEkS6WyYT1Fkh4H9Y2Bmvs=",
+			"path": "github.com/solo-io/solo-kit/api/external/kubernetes/deployment",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "20F4bgFtBjI/pRIXMrFfl8xRLVU=",
+			"path": "github.com/solo-io/solo-kit/api/external/kubernetes/namespace",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "j+dbN2dEDYJpBPNhM+CYnADViH0=",
+			"path": "github.com/solo-io/solo-kit/api/external/kubernetes/pod",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "O2oxWIVRqf0ly3xARRoF/aCspO8=",
+			"path": "github.com/solo-io/solo-kit/api/external/kubernetes/service",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "Xd4ionl6uYucPzNh57TrBJKYB7E=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "Haz1VzkBD6d7uYdn2pZWL5SfvPE=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/common",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "VpwuQkHN8IHsq2RCTVS2Db0nLZ4=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/configmap",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "e+22aOfa/GQox5xdm9ep63rT+WU=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/consul",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "dhlVq04/hgRw3g4daO0my8to49Y=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/factory",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "4sHafLWKGdZMULE1pXu1KpCIPk4=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/file",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "A+RDMgB8GV6bWsCNyspWHu3wi70=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "4HjCAsiRBt6XUT+EVN+PZ6ByYf8=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/cache",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "+YKyiIwHNWXw43Kht2VDxrVsZ2s=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/controller",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "D9MVSzx25Cej0V87YW5aUs4Brg4=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/crd",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "KUdXm0qtY6iSz6w7rTVaAGI3HT4=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/crd/client/clientset/versioned",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "zbJIcMjsAQ3TqpN5XJ0TGSpG7Ik=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/crd/client/clientset/versioned/scheme",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "XhQiTFj58dVLRx5DTVbSZ3cR8Lk=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/crd/client/clientset/versioned/typed/solo.io/v1",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "TZOOadsjqyOQSgHvuYf85C0d1MA=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kube/crd/solo.io/v1",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "m3r2p6mAnRgNktk3Xr9spe0E8FU=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/kubesecret",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "8Hejx2g6fwl+7RznXpdaaXkWyK4=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/memory",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "Cm9YucEw9h5iGc0oIEBphWvQpds=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/vault",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "nmAO51/ZtFt5PX5UmV84uitRGYQ=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/clients/wrapper",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "Ku/XMPZVTr+4A44pFJlhbAMIGSA=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/control-plane/cache",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "3QQqLW2w1nWh1CdcgqTF3yS6iM4=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/control-plane/log",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "2V9YcLJvAyjBARVvV69E/nypGrk=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/control-plane/server",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "ZVTu2kaWd3rwk4dOm1fS2/IsxIA=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/control-plane/util",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "w8bgaeKFLzcP7BLVY9y23mbFF2o=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/eventloop",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "OsW2rmkWN6NQirT1Fw9or43NJz8=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/reconcile",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "pPthL/dDfP8X5gmRtBvNL2nnoT0=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/resources",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "hJJfPwkMlUcLPm6OsamppYEuMns=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/resources/common/kubernetes",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "mIlUrVIEc7pKXhzbP6JxGVRfwXw=",
+			"path": "github.com/solo-io/solo-kit/pkg/api/v1/resources/core",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "GY+slxrqaVkQHJVE5QkhVNTlcsE=",
+			"path": "github.com/solo-io/solo-kit/pkg/errors",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "cUEcTEfl0SyfmrFXOCtdDeuYZGk=",
+			"path": "github.com/solo-io/solo-kit/pkg/utils/fileutils",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "li3is9sKEK6tjLbr10XRcUhm+F4=",
+			"path": "github.com/solo-io/solo-kit/pkg/utils/kubeutils",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "r2RjzejLRsrFBDKMZtnMomsaiyU=",
+			"path": "github.com/solo-io/solo-kit/pkg/utils/protoutils",
+			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
+			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "kd877VRZNPZAf3FJenHN3x8gv1s=",
+			"origin": "istio.io/istio/mixer/adapter/stackdriver/vendor/google.golang.org/genproto/googleapis/cloud/contextgraph/v1alpha1",
+			"path": "google.golang.org/genproto/googleapis/cloud/contextgraph/v1alpha1",
+			"revision": "538c7e44b8681c70a685233c0beb0952da7b02a7",
+			"revisionTime": "2019-07-18T09:25:50Z"
+		},
+		{
+			"checksumSHA1": "FztyrpOO/rB0D4ic3Eegffn1sC0=",
+			"origin": "istio.io/istio/mixer/adapter/stackdriver/vendor/google.golang.org/genproto/googleapis/graphservice/v0",
+			"path": "google.golang.org/genproto/googleapis/graphservice/v0",
+			"revision": "538c7e44b8681c70a685233c0beb0952da7b02a7",
+			"revisionTime": "2019-07-18T09:25:50Z"
+		},
+		{
+			"checksumSHA1": "sOW39GG7+ND386oS5Mr12y9r9e0=",
+			"path": "google.golang.org/grpc/binarylog/grpc_binarylog_v1",
+			"revision": "495133b619416f2b99dacb9b23d4da53a0f54d10",
+			"revisionTime": "2019-03-19T20:26:46Z"
+		},
+		{
+			"checksumSHA1": "rFinufin3SCIn+Fh6gN9S/1uNuk=",
+			"path": "google.golang.org/grpc/credentials/internal",
+			"revision": "495133b619416f2b99dacb9b23d4da53a0f54d10",
+			"revisionTime": "2019-03-19T20:26:46Z"
+		},
+		{
+			"checksumSHA1": "nuT43GOCSKYgT+Qza2ynwLKVikg=",
+			"path": "google.golang.org/grpc/internal/binarylog",
+			"revision": "495133b619416f2b99dacb9b23d4da53a0f54d10",
+			"revisionTime": "2019-03-19T20:26:46Z"
+		},
+		{
+			"checksumSHA1": "kmq5q3MIq/YNn6tGg0YkU0nbd50=",
+			"path": "google.golang.org/grpc/internal/grpcsync",
+			"revision": "495133b619416f2b99dacb9b23d4da53a0f54d10",
+			"revisionTime": "2019-03-19T20:26:46Z"
+		},
+		{
+			"checksumSHA1": "+0f1SrwmfFAc+Jtde2+F7BJ5FLg=",
+			"path": "google.golang.org/grpc/internal/syscall",
+			"revision": "495133b619416f2b99dacb9b23d4da53a0f54d10",
+			"revisionTime": "2019-03-19T20:26:46Z"
+		}
+	],
+	"rootPath": "istio.io/istio"
+}
