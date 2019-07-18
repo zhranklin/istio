@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 26
+number_of_entries: 28
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -1545,7 +1545,7 @@ matching or selection for final routing.</p>
 </tr>
 <tr id="RequestTransformation-new">
 <td><code>new</code></td>
-<td><code><a href="#Parameters">Parameters</a></code></td>
+<td><code><a href="#TransformedRequest">TransformedRequest</a></code></td>
 <td>
 <p>Inject the elements from the original request into the new request</p>
 
@@ -1811,6 +1811,66 @@ is matched if any one of the match blocks succeed.</p>
 <td>
 <p>The destination to which the connection should be forwarded to.</p>
 
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="TransformedRequest">TransformedRequest</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="TransformedRequest-param">
+<td><code>param</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformedRequest-bodytype">
+<td><code>bodytype</code></td>
+<td><code><a href="#TransformedRequest-BodyType">TransformedRequest.BodyType</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformedRequest-text">
+<td><code>text</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="TransformedRequest-BodyType">TransformedRequest.BodyType</h2>
+<section>
+<table class="enum-values">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="TransformedRequest-BodyType-Body">
+<td><code>Body</code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformedRequest-BodyType-Passthrough">
+<td><code>Passthrough</code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformedRequest-BodyType-MergeExtractorsToBody">
+<td><code>MergeExtractorsToBody</code></td>
+<td>
 </td>
 </tr>
 </tbody>
