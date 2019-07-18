@@ -431,7 +431,7 @@ message HTTPRoute {
     HttpReturn return = 17;
 
     // Transform Resquest
-    Parameters requestTransform = 18;
+    RequestTransformation requestTransform = 18;
 
     // Transform Response
     Parameters responseTransform = 19;
