@@ -336,6 +336,29 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 					PathRedirect: redirect.Uri,
 				},
 			}}
+	} else if ret := in.Return; ret != nil {
+		var a *route.DirectResponseAction
+		out.Action = &route.Route_DirectResponse{
+			DirectResponse: &route.DirectResponseAction{
+				Status: uint32(ret.Code),
+				Body:   &core.DataSource{},
+			},
+		}
+		if ret.Body != nil {
+			if ret.Body.Filename != "" {
+				a.Body.Specifier = &core.DataSource_Filename{
+					Filename: ret.Body.Filename,
+				}
+			} else if ret.Body.Inlinebyte != nil {
+				a.Body.Specifier = &core.DataSource_InlineBytes{
+					InlineBytes: ret.Body.Inlinebyte,
+				}
+			} else if ret.Body.InlineString != "" {
+				a.Body.Specifier = &core.DataSource_InlineString{
+					InlineString: ret.Body.InlineString,
+				}
+			}
+		}
 	} else {
 		action := &route.RouteAction{
 			Cors:        translateCORSPolicy(in.CorsPolicy, node),
