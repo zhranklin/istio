@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 24
+number_of_entries: 26
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -1115,6 +1115,22 @@ field instead.</p>
 
 </td>
 </tr>
+<tr id="HTTPRoute-requestTransform">
+<td><code>requestTransform</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+<p>Transform Resquest</p>
+
+</td>
+</tr>
+<tr id="HTTPRoute-responseTransform">
+<td><code>responseTransform</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+<p>Transform Response</p>
+
+</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1422,6 +1438,45 @@ match is independent of sourceLabels.</p>
 </tbody>
 </table>
 </section>
+<h2 id="Parameters">Parameters</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Parameters-headers">
+<td><code>headers</code></td>
+<td><code>map&lt;string,&nbsp;string&gt;</code></td>
+<td>
+<p>headers that will be used to extract data for processing output templates
+Example:
+  extensions:
+    parameters:
+        headers:
+          x-user-id: &lbrace; userId }</p>
+
+</td>
+</tr>
+<tr id="Parameters-path">
+<td><code>path</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#stringvalue">google.protobuf.StringValue</a></code></td>
+<td>
+<p>part of the (or the entire) path that will be used extract data for processing output templates
+Example:
+  extensions:
+    parameters:
+        path: /users/&lbrace; userId }</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
 <h2 id="Percent">Percent</h2>
 <section>
 <p>Percent specifies a percentage in the range of [0.0, 100.0].</p>
@@ -1463,6 +1518,36 @@ matching or selection for final routing.</p>
 <td><code>uint32 (oneof)</code></td>
 <td>
 <p>Valid port number</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RequestTransformation">RequestTransformation</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RequestTransformation-orignal">
+<td><code>orignal</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+<p>Extract the elements in the original request</p>
+
+</td>
+</tr>
+<tr id="RequestTransformation-new">
+<td><code>new</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+<p>Inject the elements from the original request into the new request</p>
 
 </td>
 </tr>
