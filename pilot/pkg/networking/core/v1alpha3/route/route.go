@@ -16,6 +16,7 @@ package route
 
 import (
 	"fmt"
+	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,8 @@ import (
 	xdstype "github.com/envoyproxy/go-control-plane/envoy/type"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
+	transformapi "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/transformation"
+	trans "github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
@@ -488,7 +491,48 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		}
 	}
 
+	if reqTranformation := in.RequestTransform; reqTranformation != nil {
+		transformation := &transformapi.TransformationTemplate{}
+		var err error
+		transformation.Headers = generateNewHeaders(reqTranformation.New.Headers)
+		if in.RequestTransform.New.Path != nil {
+			transformation.Headers[":path"] = &transformapi.InjaTemplate{
+				Text: reqTranformation.New.Path.Value,
+			}
+		}
+		transformation.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
+		transformation.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
+			Headers: reqTranformation.Orignal.Headers,
+			Path:    reqTranformation.Orignal.Path,
+		})
+		if err != nil {
+			log.Error(err.Error())
+		}
+
+		ret := &transformapi.RouteTransformations{
+			RequestTransformation: &transformapi.Transformation{
+				TransformationType: &transformapi.Transformation_TransformationTemplate{
+					TransformationTemplate: transformation,
+				},
+			},
+		}
+		if util.IsXDSMarshalingToAnyEnabled(node) {
+			out.TypedPerFilterConfig[trans.FilterName] = util.MessageToAny(ret)
+		} else {
+			out.PerFilterConfig[trans.FilterName] = util.MessageToStruct(ret)
+		}
+	}
+
 	return out
+}
+func generateNewHeaders(headers map[string]string) map[string]*transformapi.InjaTemplate {
+	ret := make(map[string]*transformapi.InjaTemplate, len(headers))
+	for k, v := range headers {
+		ret[k] = &transformapi.InjaTemplate{
+			Text: v,
+		}
+	}
+	return ret
 }
 
 // SortHeaderValueOption type and the functions below (Len, Less and Swap) are for sort.Stable for type HeaderValueOption

@@ -446,6 +446,17 @@ message RequestTransformation {
     Parameters new = 2;
 }
 
+message TransformedRequest {
+    Parameters param = 1;
+    enum BodyType {
+        Body = 0;
+        Passthrough = 1;
+        MergeExtractorsToBody = 2;
+    }
+    BodyType bodytype = 2;
+    string text = 3;
+}
+
 message Parameters {
     // headers that will be used to extract data for processing output templates
     // Example:
