@@ -10,6 +10,18 @@ spec:
     - destination:
         host: productpage
         subset: v1
+    requestTransform:
+      orignal:
+        headers:
+          x-user-id: '{userId}'
+        path: '/users/{pathId}'
+      new:
+        param:
+          headers:
+            x-new-user-id: '{userId}'
+          path: '/users/new/{userId}/{pathId}'
+        bodyType: 'body'
+        text: 'message from {userId}'
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

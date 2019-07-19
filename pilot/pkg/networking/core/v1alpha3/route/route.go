@@ -494,6 +494,9 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 	if reqTranformation := in.RequestTransform; reqTranformation != nil {
 		transformation := &transformapi.TransformationTemplate{}
 		var err error
+		if reqTranformation.New == nil || reqTranformation.New.Param == nil {
+			return out
+		}
 		transformation.Headers = generateNewHeaders(reqTranformation.New.Param.Headers)
 		if in.RequestTransform.New.Param.Path != nil {
 			transformation.Headers[":path"] = &transformapi.InjaTemplate{
@@ -512,10 +515,14 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		case networking.TransformedRequest_Passthrough:
 			transformation.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
 		}
-		transformation.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
-			Headers: reqTranformation.Orignal.Headers,
-			Path:    reqTranformation.Orignal.Path,
-		})
+		if reqTranformation.Orignal != nil {
+			transformation.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
+				Headers: reqTranformation.Orignal.Headers,
+				Path:    reqTranformation.Orignal.Path,
+			})
+		} else {
+			transformation.Extractors, err = rest.CreateRequestExtractors(nil, nil)
+		}
 		if err != nil {
 			log.Error(err.Error())
 		}

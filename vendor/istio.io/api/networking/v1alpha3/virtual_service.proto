@@ -449,8 +449,8 @@ message RequestTransformation {
 message TransformedRequest {
     Parameters param = 1;
     enum BodyType {
-        Body = 0;
-        Passthrough = 1;
+        Passthrough = 0;
+        Body = 1;
         MergeExtractorsToBody = 2;
     }
     BodyType bodytype = 2;
