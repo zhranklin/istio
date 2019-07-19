@@ -10,12 +10,6 @@
 			"revisionTime": "2019-07-18T09:25:50Z"
 		},
 		{
-			"checksumSHA1": "U73EPbxe4KQIyLBQjNe9JGrEwJ0=",
-			"path": "github.com/envoyproxy/protoc-gen-validate/validate",
-			"revision": "00920a57af0ebef0bd2ff64996945d807870a577",
-			"revisionTime": "2019-05-04T01:19:10Z"
-		},
-		{
 			"checksumSHA1": "ldCKbEgeCDEpR46gav9UiOJBv6E=",
 			"path": "github.com/k0kubun/pp",
 			"revision": "ea9763a91366a414dccd02c8019a6dafe54829db",
@@ -482,6 +476,12 @@
 			"path": "github.com/solo-io/solo-kit/pkg/utils/protoutils",
 			"revision": "a5b6bd42322788ea33293f320de942e053506e18",
 			"revisionTime": "2019-07-03T18:56:25Z"
+		},
+		{
+			"checksumSHA1": "0/OIshmoBSMErrRjCTDJUzit6aw=",
+			"path": "go.uber.org/zap",
+			"revision": "9a9fa7d4b5f07a9b634983678a65b5525f81e58b",
+			"revisionTime": "2019-07-09T14:27:28Z"
 		},
 		{
 			"checksumSHA1": "kd877VRZNPZAf3FJenHN3x8gv1s=",
