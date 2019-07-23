@@ -10,6 +10,18 @@
 			"revisionTime": "2019-07-18T09:25:50Z"
 		},
 		{
+			"checksumSHA1": "QDI8z2ESI5XGoTUvSz9ul2K2Fxw=",
+			"path": "github.com/avast/retry-go",
+			"revision": "101acd3290b786bf437607d874596e3996484d8d",
+			"revisionTime": "2019-07-13T19:21:09Z"
+		},
+		{
+			"checksumSHA1": "IHIm2BA6DrJDHvALz65pY2G38sM=",
+			"path": "github.com/golang/mock/gomock",
+			"revision": "dd8d2a22370e4c8a334e80ca8477f71356c8e4bb",
+			"revisionTime": "2019-07-13T10:24:42Z"
+		},
+		{
 			"checksumSHA1": "ldCKbEgeCDEpR46gav9UiOJBv6E=",
 			"path": "github.com/k0kubun/pp",
 			"revision": "ea9763a91366a414dccd02c8019a6dafe54829db",
@@ -26,6 +38,18 @@
 			"path": "github.com/mattn/go-isatty",
 			"revision": "da60ac76bf7019a8b005f8dd1ad9d1a0e6434155",
 			"revisionTime": "2019-07-08T05:43:38Z"
+		},
+		{
+			"checksumSHA1": "gOIe6F97Mcq/PwZjG38FkxervzE=",
+			"path": "github.com/mitchellh/hashstructure",
+			"revision": "a38c50148365edc8df43c1580c48fb2b3a1e9cd7",
+			"revisionTime": "2018-08-28T14:53:49Z"
+		},
+		{
+			"checksumSHA1": "dpyaCHngMPqmKZGTTwPWyPe/vvQ=",
+			"path": "github.com/radovskyb/watcher",
+			"revision": "f33c874a09dcfac90f008abeee9171d88431e212",
+			"revisionTime": "2019-01-27T04:54:35Z"
 		},
 		{
 			"checksumSHA1": "TxrwwisuTyb+HFEfPRfik23t8VE=",
@@ -482,6 +506,18 @@
 			"path": "go.uber.org/zap",
 			"revision": "9a9fa7d4b5f07a9b634983678a65b5525f81e58b",
 			"revisionTime": "2019-07-09T14:27:28Z"
+		},
+		{
+			"checksumSHA1": "iEK5hCRfrkdc1JOJsaiWuymHmeQ=",
+			"path": "golang.org/x/sync/errgroup",
+			"revision": "112230192c580c3556b8cee6403af37a4fc5f28c",
+			"revisionTime": "2019-04-22T22:11:18Z"
+		},
+		{
+			"checksumSHA1": "fqi5wrtLirDRLeXBetveI1nLg5M=",
+			"path": "golang.org/x/xerrors",
+			"revision": "a985d3407aa71f30cf86696ee0a2f409709f22e1",
+			"revisionTime": "2019-05-16T17:31:01Z"
 		},
 		{
 			"checksumSHA1": "kd877VRZNPZAf3FJenHN3x8gv1s=",

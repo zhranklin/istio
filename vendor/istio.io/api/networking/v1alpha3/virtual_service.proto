@@ -435,6 +435,9 @@ message HTTPRoute {
 
     // Transform Response
     Parameters responseTransform = 19;
+
+    // api name
+    string name = 20;
 }
 
 message RequestTransformation {

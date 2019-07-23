@@ -16,6 +16,7 @@ package mock
 
 import (
 	"fmt"
+	"github.com/gogo/protobuf/types"
 	"reflect"
 	"strconv"
 	"testing"
@@ -50,6 +51,20 @@ var (
 							Host: "job",
 						},
 						Weight: 80,
+					},
+				},
+				RequestTransform: &networking.RequestTransformation{
+					Orignal: &networking.Parameters{
+						Path: &types.StringValue{
+							Value: "user/{userID}",
+						},
+					},
+					New: &networking.TransformedRequest{
+						Param: &networking.Parameters{
+							Path: &types.StringValue{
+								Value:"newpath/{userID}",
+							},
+						},
 					},
 				},
 			},

@@ -189,6 +189,7 @@ func init() {
 }
 
 func main() {
+	log.Info("version: 4ad559412482717714d052fa256152520c7a2d73")
 	if err := rootCmd.Execute(); err != nil {
 		log.Errora(err)
 		os.Exit(-1)
