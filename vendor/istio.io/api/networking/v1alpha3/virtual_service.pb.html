@@ -1171,7 +1171,7 @@ field instead.</p>
 </tr>
 <tr id="HTTPRoute-requestTransform">
 <td><code>requestTransform</code></td>
-<td><code><a href="#RequestTransformation">RequestTransformation</a></code></td>
+<td><code><a href="#HttpTransformation">HttpTransformation</a></code></td>
 <td>
 <p>Transform Resquest</p>
 
@@ -1179,7 +1179,7 @@ field instead.</p>
 </tr>
 <tr id="HTTPRoute-responseTransform">
 <td><code>responseTransform</code></td>
-<td><code><a href="#Parameters">Parameters</a></code></td>
+<td><code><a href="#HttpTransformation">HttpTransformation</a></code></td>
 <td>
 <p>Transform Response</p>
 
@@ -1443,6 +1443,36 @@ to the caller</p>
 </tbody>
 </table>
 </section>
+<h2 id="HttpTransformation">HttpTransformation</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="HttpTransformation-orignal">
+<td><code>orignal</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+<p>Extract the elements in the original request</p>
+
+</td>
+</tr>
+<tr id="HttpTransformation-new">
+<td><code>new</code></td>
+<td><code><a href="#Parameters">Parameters</a></code></td>
+<td>
+<p>Inject the elements from the original request into the new request</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
 <h2 id="L4MatchAttributes">L4MatchAttributes</h2>
 <section>
 <p>L4 connection match attributes. Note that L4 connection matching support
@@ -1589,36 +1619,6 @@ matching or selection for final routing.</p>
 <td><code>uint32 (oneof)</code></td>
 <td>
 <p>Valid port number</p>
-
-</td>
-</tr>
-</tbody>
-</table>
-</section>
-<h2 id="RequestTransformation">RequestTransformation</h2>
-<section>
-<table class="message-fields">
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr id="RequestTransformation-orignal">
-<td><code>orignal</code></td>
-<td><code><a href="#Parameters">Parameters</a></code></td>
-<td>
-<p>Extract the elements in the original request</p>
-
-</td>
-</tr>
-<tr id="RequestTransformation-new">
-<td><code>new</code></td>
-<td><code><a href="#Parameters">Parameters</a></code></td>
-<td>
-<p>Inject the elements from the original request into the new request</p>
 
 </td>
 </tr>

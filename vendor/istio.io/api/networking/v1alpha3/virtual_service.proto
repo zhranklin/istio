@@ -431,16 +431,16 @@ message HTTPRoute {
     HttpReturn return = 17;
 
     // Transform Resquest
-    RequestTransformation requestTransform = 18;
+    HttpTransformation requestTransform = 18;
 
     // Transform Response
-    Parameters responseTransform = 19;
+    HttpTransformation responseTransform = 19;
 
     // api name
     string name = 20;
 }
 
-message RequestTransformation {
+message HttpTransformation {
 
     // Extract the elements in the original request
     Parameters orignal = 1;

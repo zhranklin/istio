@@ -16,6 +16,7 @@ package route
 
 import (
 	"fmt"
+	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation"
 	"sort"
 	"strconv"
@@ -30,8 +31,6 @@ import (
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
 	transformapi "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/transformation"
-	trans "github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
-
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/route/retry"
@@ -491,58 +490,73 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		}
 	}
 
-	if reqTranformation := in.RequestTransform; reqTranformation != nil {
-		transformation := &transformapi.TransformationTemplate{}
-		var err error
-		if reqTranformation.New == nil {
-			return out
-		}
-		transformation.Headers = generateNewHeaders(reqTranformation.New.Headers)
-		if in.RequestTransform.New.Path != nil {
-			transformation.Headers[":path"] = &transformapi.InjaTemplate{
-				Text: reqTranformation.New.Path.Value,
+	if in.RequestTransform != nil || in.ResponseTransform != nil {
+		ret := &transformapi.RouteTransformations{}
+		if reqTransformation := in.RequestTransform; reqTransformation != nil {
+			glooreq := httpTransformationToGlooTransformation(reqTransformation)
+			ret.RequestTransformation = &transformapi.Transformation{
+				TransformationType: &transformapi.Transformation_TransformationTemplate{
+					TransformationTemplate: glooreq,
+				},
 			}
 		}
-		switch in.RequestTransform.New.Body.Type {
+		if respTransformation := in.ResponseTransform; respTransformation != nil {
+			glooresp := httpTransformationToGlooTransformation(respTransformation)
+			ret.ResponseTransformation = &transformapi.Transformation{
+				TransformationType: &transformapi.Transformation_TransformationTemplate{
+					TransformationTemplate: glooresp,
+				},
+			}
+		}
+		if util.IsXDSMarshalingToAnyEnabled(node) {
+			out.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(ret)
+		} else {
+			out.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(ret)
+		}
+	}
+	return out
+}
+
+func httpTransformationToGlooTransformation(httpTransformation *networking.HttpTransformation) *transformapi.TransformationTemplate {
+	ret := &transformapi.TransformationTemplate{}
+	// build Extractors
+	var err error
+	if httpTransformation.Orignal != nil {
+		ret.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
+			Headers: httpTransformation.Orignal.Headers,
+			Path:    httpTransformation.Orignal.Path,
+		})
+	} else {
+		ret.Extractors, err = rest.CreateRequestExtractors(nil, nil)
+	}
+	if err != nil {
+		log.Error(err.Error())
+	}
+
+	// build template
+	if httpTransformation.New != nil {
+		ret.Headers = generateNewHeaders(httpTransformation.New.Headers)
+		if httpTransformation.New.Path != nil {
+			ret.Headers[":path"] = &transformapi.InjaTemplate{
+				Text: httpTransformation.New.Path.Value,
+			}
+		}
+		switch httpTransformation.New.Body.Type {
 		case networking.Body_Body:
-			transformation.BodyTransformation = &transformapi.TransformationTemplate_Body{
+			ret.BodyTransformation = &transformapi.TransformationTemplate_Body{
 				Body: &transformapi.InjaTemplate{
-					Text: in.RequestTransform.New.Body.Text,
+					Text: httpTransformation.New.Body.Text,
 				},
 			}
 		case networking.Body_MergeExtractorsToBody:
-			transformation.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
+			ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
 		case networking.Body_Passthrough:
-			transformation.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
-		}
-		if reqTranformation.Orignal != nil {
-			transformation.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
-				Headers: reqTranformation.Orignal.Headers,
-				Path:    reqTranformation.Orignal.Path,
-			})
-		} else {
-			transformation.Extractors, err = rest.CreateRequestExtractors(nil, nil)
-		}
-		if err != nil {
-			log.Error(err.Error())
-		}
-
-		ret := &transformapi.RouteTransformations{
-			RequestTransformation: &transformapi.Transformation{
-				TransformationType: &transformapi.Transformation_TransformationTemplate{
-					TransformationTemplate: transformation,
-				},
-			},
-		}
-		if util.IsXDSMarshalingToAnyEnabled(node) {
-			out.TypedPerFilterConfig[trans.FilterName] = util.MessageToAny(ret)
-		} else {
-			out.PerFilterConfig[trans.FilterName] = util.MessageToStruct(ret)
+			ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
 		}
 	}
-
-	return out
+	return ret
 }
+
 func generateNewHeaders(headers map[string]string) map[string]*transformapi.InjaTemplate {
 	ret := make(map[string]*transformapi.InjaTemplate, len(headers))
 	if headers != nil {
