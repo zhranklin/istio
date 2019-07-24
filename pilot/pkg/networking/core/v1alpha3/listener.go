@@ -17,7 +17,8 @@ package v1alpha3
 import (
 	"encoding/json"
 	"fmt"
-	types "github.com/gogo/protobuf/types"
+	"github.com/gogo/protobuf/types"
+	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	"reflect"
 	"sort"
@@ -37,7 +38,6 @@ import (
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	google_protobuf "github.com/gogo/protobuf/types"
 	"github.com/prometheus/client_golang/prometheus"
-
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
@@ -379,6 +379,7 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 	filters := []*http_conn.HttpFilter{
 		{Name: xdsutil.CORS},
 		{Name: xdsutil.Fault},
+		{Name: transformation.FilterName},
 		{Name: xdsutil.Router},
 	}
 	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
@@ -1005,7 +1006,7 @@ func validatePort(node *model.Proxy, i int, bindToPort bool) bool {
 // adds it to the listenerMap provided by the caller.  Listeners are added
 // if one doesn't already exist. HTTP listeners on same port are ignored
 // (as vhosts are shipped through RDS).  TCP listeners on same port are
-// allowed only if they have different CIDR matches.
+// allowed only if they have different CIDR matches.·
 func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(listenerOpts buildListenerOpts,
 	pluginParams *plugin.InputParams, listenerMap map[string]*outboundListenerEntry, virtualServices []model.Config) {
 
@@ -1220,7 +1221,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(l
 		// if and only if the filter chains have distinct conditions
 		// Extract the current filter chain matches
 		// For every new filter chain match being added, check if any previous match is same
-		// if so, skip adding this filter chain with a warning
+		// if so,  skip adding this filter chain with a warning
 		// This is very unoptimized.
 		newFilterChains := make([]listener.FilterChain, 0,
 			len(currentListenerEntry.listener.FilterChains)+len(mutable.Listener.FilterChains))
@@ -1495,6 +1496,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 	filters = append(filters,
 		&http_conn.HttpFilter{Name: xdsutil.CORS},
 		&http_conn.HttpFilter{Name: xdsutil.Fault},
+		&http_conn.HttpFilter{Name: transformation.FilterName},
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 

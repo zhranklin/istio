@@ -10,6 +10,29 @@ spec:
     - destination:
         host: productpage
         subset: v1
+    requestTransform:
+      orignal:
+        headers:
+          x-user-id: '{userId}'
+        path: '/users/{pathId}'
+      new:
+        headers:
+          x-new-user-id: '{{userId}}'
+        path: '/users/new/{{userId}}/{{pathId}}'
+        body:
+          type: Body
+          text: 'message from {{userId}}'
+    responseTransform:
+      orignal:
+        headers:
+          x-user-id: '{userId}'
+        path: '/users/{pathId}'
+      new:
+        headers:
+          x-new-user-id: '{{userId}}'
+        path: '/users/new/{{userId}}/{{pathId}}'
+        body:
+          type: MergeExtractorsToBody
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

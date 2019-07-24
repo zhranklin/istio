@@ -16,6 +16,8 @@ package route
 
 import (
 	"fmt"
+	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
+	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,7 +30,7 @@ import (
 	xdstype "github.com/envoyproxy/go-control-plane/envoy/type"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
-
+	transformapi "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/transformation"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/route/retry"
@@ -336,6 +338,29 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 					PathRedirect: redirect.Uri,
 				},
 			}}
+	} else if ret := in.Return; ret != nil {
+		var a *route.DirectResponseAction
+		out.Action = &route.Route_DirectResponse{
+			DirectResponse: &route.DirectResponseAction{
+				Status: uint32(ret.Code),
+				Body:   &core.DataSource{},
+			},
+		}
+		if ret.Body != nil {
+			if ret.Body.Filename != "" {
+				a.Body.Specifier = &core.DataSource_Filename{
+					Filename: ret.Body.Filename,
+				}
+			} else if ret.Body.Inlinebyte != nil {
+				a.Body.Specifier = &core.DataSource_InlineBytes{
+					InlineBytes: ret.Body.Inlinebyte,
+				}
+			} else if ret.Body.InlineString != "" {
+				a.Body.Specifier = &core.DataSource_InlineString{
+					InlineString: ret.Body.InlineString,
+				}
+			}
+		}
 	} else {
 		action := &route.RouteAction{
 			Cors:        translateCORSPolicy(in.CorsPolicy, node),
@@ -465,7 +490,83 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		}
 	}
 
+	if in.RequestTransform != nil || in.ResponseTransform != nil {
+		ret := &transformapi.RouteTransformations{}
+		if reqTransformation := in.RequestTransform; reqTransformation != nil {
+			glooreq := httpTransformationToGlooTransformation(reqTransformation)
+			ret.RequestTransformation = &transformapi.Transformation{
+				TransformationType: &transformapi.Transformation_TransformationTemplate{
+					TransformationTemplate: glooreq,
+				},
+			}
+		}
+		if respTransformation := in.ResponseTransform; respTransformation != nil {
+			glooresp := httpTransformationToGlooTransformation(respTransformation)
+			ret.ResponseTransformation = &transformapi.Transformation{
+				TransformationType: &transformapi.Transformation_TransformationTemplate{
+					TransformationTemplate: glooresp,
+				},
+			}
+		}
+		if util.IsXDSMarshalingToAnyEnabled(node) {
+			out.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(ret)
+		} else {
+			out.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(ret)
+		}
+	}
 	return out
+}
+
+func httpTransformationToGlooTransformation(httpTransformation *networking.HttpTransformation) *transformapi.TransformationTemplate {
+	ret := &transformapi.TransformationTemplate{}
+	// build Extractors
+	var err error
+	if httpTransformation.Orignal != nil {
+		ret.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
+			Headers: httpTransformation.Orignal.Headers,
+			Path:    httpTransformation.Orignal.Path,
+		})
+	} else {
+		ret.Extractors, err = rest.CreateRequestExtractors(nil, nil)
+	}
+	if err != nil {
+		log.Error(err.Error())
+	}
+
+	// build template
+	if httpTransformation.New != nil {
+		ret.Headers = generateNewHeaders(httpTransformation.New.Headers)
+		if httpTransformation.New.Path != nil {
+			ret.Headers[":path"] = &transformapi.InjaTemplate{
+				Text: httpTransformation.New.Path.Value,
+			}
+		}
+		switch httpTransformation.New.Body.Type {
+		case networking.Body_Body:
+			ret.BodyTransformation = &transformapi.TransformationTemplate_Body{
+				Body: &transformapi.InjaTemplate{
+					Text: httpTransformation.New.Body.Text,
+				},
+			}
+		case networking.Body_MergeExtractorsToBody:
+			ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
+		case networking.Body_Passthrough:
+			ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
+		}
+	}
+	return ret
+}
+
+func generateNewHeaders(headers map[string]string) map[string]*transformapi.InjaTemplate {
+	ret := make(map[string]*transformapi.InjaTemplate, len(headers))
+	if headers != nil {
+		for k, v := range headers {
+			ret[k] = &transformapi.InjaTemplate{
+				Text: v,
+			}
+		}
+	}
+	return ret
 }
 
 // SortHeaderValueOption type and the functions below (Len, Less and Swap) are for sort.Stable for type HeaderValueOption
