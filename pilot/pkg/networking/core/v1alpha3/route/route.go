@@ -494,25 +494,25 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 	if reqTranformation := in.RequestTransform; reqTranformation != nil {
 		transformation := &transformapi.TransformationTemplate{}
 		var err error
-		if reqTranformation.New == nil || reqTranformation.New.Param == nil {
+		if reqTranformation.New == nil {
 			return out
 		}
-		transformation.Headers = generateNewHeaders(reqTranformation.New.Param.Headers)
-		if in.RequestTransform.New.Param.Path != nil {
+		transformation.Headers = generateNewHeaders(reqTranformation.New.Headers)
+		if in.RequestTransform.New.Path != nil {
 			transformation.Headers[":path"] = &transformapi.InjaTemplate{
-				Text: reqTranformation.New.Param.Path.Value,
+				Text: reqTranformation.New.Path.Value,
 			}
 		}
-		switch in.RequestTransform.New.Bodytype {
-		case networking.TransformedRequest_Body:
+		switch in.RequestTransform.New.Body.Type {
+		case networking.Body_Body:
 			transformation.BodyTransformation = &transformapi.TransformationTemplate_Body{
 				Body: &transformapi.InjaTemplate{
-					Text: in.RequestTransform.New.Text,
+					Text: in.RequestTransform.New.Body.Text,
 				},
 			}
-		case networking.TransformedRequest_MergeExtractorsToBody:
+		case networking.Body_MergeExtractorsToBody:
 			transformation.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
-		case networking.TransformedRequest_Passthrough:
+		case networking.Body_Passthrough:
 			transformation.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
 		}
 		if reqTranformation.Orignal != nil {
@@ -545,9 +545,11 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 }
 func generateNewHeaders(headers map[string]string) map[string]*transformapi.InjaTemplate {
 	ret := make(map[string]*transformapi.InjaTemplate, len(headers))
-	for k, v := range headers {
-		ret[k] = &transformapi.InjaTemplate{
-			Text: v,
+	if headers != nil {
+		for k, v := range headers {
+			ret[k] = &transformapi.InjaTemplate{
+				Text: v,
+			}
 		}
 	}
 	return ret
