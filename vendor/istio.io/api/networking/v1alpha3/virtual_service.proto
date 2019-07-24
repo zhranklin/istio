@@ -446,18 +446,17 @@ message RequestTransformation {
     Parameters orignal = 1;
 
     // Inject the elements from the original request into the new request
-    TransformedRequest new = 2;
+    Parameters new = 2;
 }
 
-message TransformedRequest {
-    Parameters param = 1;
+message Body {
     enum BodyType {
         Passthrough = 0;
         Body = 1;
         MergeExtractorsToBody = 2;
     }
-    BodyType bodytype = 2;
-    string text = 3;
+    BodyType type = 1;
+    string text = 2;
 }
 
 message Parameters {
@@ -476,6 +475,7 @@ message Parameters {
     google.protobuf.StringValue path = 2;
     //TODO: support query params
     //TODO: support form params
+    Body body = 3;
 }
 
 message HttpReturn {
