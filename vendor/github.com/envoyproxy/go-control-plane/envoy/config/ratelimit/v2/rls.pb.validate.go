@@ -59,8 +59,6 @@ func (m *RateLimitServiceConfig) Validate() error {
 		}
 	}
 
-	// no validation rules for StaticConfig
-
 	return nil
 }
 

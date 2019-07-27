@@ -261,6 +261,21 @@ func (m *HttpConnectionManager) Validate() error {
 
 	}
 
+	for idx, item := range m.GetUrlTransformer() {
+		_, _ = idx, item
+
+		if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return HttpConnectionManagerValidationError{
+					Field:  fmt.Sprintf("UrlTransformer[%v]", idx),
+					Reason: "embedded message failed validation",
+					Cause:  err,
+				}
+			}
+		}
+
+	}
+
 	switch m.RouteSpecifier.(type) {
 
 	case *HttpConnectionManager_Rds:
@@ -328,6 +343,50 @@ func (e HttpConnectionManagerValidationError) Error() string {
 }
 
 var _ error = HttpConnectionManagerValidationError{}
+
+// Validate checks the field values on UrlTransformer with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *UrlTransformer) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	// no validation rules for Prefix
+
+	return nil
+}
+
+// UrlTransformerValidationError is the validation error returned by
+// UrlTransformer.Validate if the designated constraints aren't met.
+type UrlTransformerValidationError struct {
+	Field  string
+	Reason string
+	Cause  error
+	Key    bool
+}
+
+// Error satisfies the builtin error interface
+func (e UrlTransformerValidationError) Error() string {
+	cause := ""
+	if e.Cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.Cause)
+	}
+
+	key := ""
+	if e.Key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUrlTransformer.%s: %s%s",
+		key,
+		e.Field,
+		e.Reason,
+		cause)
+}
+
+var _ error = UrlTransformerValidationError{}
 
 // Validate checks the field values on Rds with the rules defined in the proto
 // definition for this message. If any rules are violated, an error is returned.
