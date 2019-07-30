@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 28
+number_of_entries: 38
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -1193,6 +1193,14 @@ field instead.</p>
 
 </td>
 </tr>
+<tr id="HTTPRoute-rate_limits">
+<td><code>rateLimits</code></td>
+<td><code><a href="#RateLimit">RateLimit[]</a></code></td>
+<td>
+<p>rate limiter config for http route</p>
+
+</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1332,6 +1340,153 @@ field instead.</p>
 <td><code><a href="#Headers">Headers</a></code></td>
 <td>
 <p>Header manipulation rules</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="HeaderMatcher">HeaderMatcher</h2>
+<section>
+<p>.. attention::</p>
+
+<p>Internally, Envoy always uses the HTTP/2 <em>:authority</em> header to represent the HTTP/1 <em>Host</em>
+  header. Thus, if attempting to match on <em>Host</em>, match on <em>:authority</em> instead.</p>
+
+<p>.. attention::</p>
+
+<p>To route on HTTP method, use the special HTTP/2 <em>:method</em> header. This works for both
+  HTTP/1 and HTTP/2 as Envoy normalizes headers. E.g.,</p>
+
+<p>.. code-block:: json</p>
+
+<pre><code>&lbrace;
+  &quot;name&quot;: &quot;:method&quot;,
+  &quot;exact_match&quot;: &quot;POST&quot;
+}
+</code></pre>
+
+<p>.. attention::
+  In the absence of any header match specifier, match will default to :ref:<code>present_match
+  &lt;envoy_api_field_route.HeaderMatcher.present_match&gt;</code>. i.e, a request that has the :ref:<code>name
+  &lt;envoy_api_field_route.HeaderMatcher.name&gt;</code> header will match, regardless of the header&rsquo;s
+  value.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="HeaderMatcher-name">
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>
+<p>Specifies the name of the header in the request.</p>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-exact_match" class="oneof oneof-start">
+<td><code>exactMatch</code></td>
+<td><code>string (oneof)</code></td>
+<td>
+<p>If specified, header match will be performed based on the value of the header.</p>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-regex_match" class="oneof">
+<td><code>regexMatch</code></td>
+<td><code>string (oneof)</code></td>
+<td>
+<p>If specified, this regex string is a regular expression rule which implies the entire request
+header value must match the regex. The rule will not match if only a subsequence of the
+request header value matches the regex. The regex grammar used in the value field is defined
+<code>here &lt;https://en.cppreference.com/w/cpp/regex/ecmascript&gt;</code>_.</p>
+
+<p>Examples:</p>
+
+<ul>
+<li>The regex <em>\d&lbrace;3}</em> matches the value <em>123</em></li>
+<li>The regex <em>\d&lbrace;3}</em> does not match the value <em>1234</em></li>
+<li>The regex <em>\d&lbrace;3}</em> does not match the value <em>123.456</em></li>
+</ul>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-range_match" class="oneof">
+<td><code>rangeMatch</code></td>
+<td><code>int64 (oneof)</code></td>
+<td>
+<p>If specified, header match will be performed based on range.
+The rule will match if the request header value is within this range.
+The entire request header value must represent an integer in base 10 notation: consisting of
+an optional plus or minus sign followed by a sequence of digits. The rule will not match if
+the header value does not represent an integer. Match will fail for empty values, floating
+point numbers or if only a subsequence of the header value is an integer.</p>
+
+<p>Examples:</p>
+
+<ul>
+<li>For range [-10,0), route will match for header value -1, but not for 0, &ldquo;somestring&rdquo;, 10.9,
+&ldquo;-1somestring&rdquo;</li>
+</ul>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-present_match" class="oneof">
+<td><code>presentMatch</code></td>
+<td><code>bool (oneof)</code></td>
+<td>
+<p>If specified, header match will be performed based on whether the header is in the
+request.</p>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-prefix_match" class="oneof">
+<td><code>prefixMatch</code></td>
+<td><code>string (oneof)</code></td>
+<td>
+<p>If specified, header match will be performed based on the prefix of the header value.
+Note: empty prefix is not allowed, please use present_match instead.</p>
+
+<p>Examples:</p>
+
+<ul>
+<li>The prefix <em>abcd</em> matches the value <em>abcdxyz</em>, but not for <em>abcxyz</em>.</li>
+</ul>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-suffix_match" class="oneof">
+<td><code>suffixMatch</code></td>
+<td><code>string (oneof)</code></td>
+<td>
+<p>If specified, header match will be performed based on the suffix of the header value.
+Note: empty suffix is not allowed, please use present_match instead.</p>
+
+<p>Examples:</p>
+
+<ul>
+<li>The suffix <em>abcd</em> matches the value <em>xyzabcd</em>, but not for <em>xyzbcd</em>.</li>
+</ul>
+
+</td>
+</tr>
+<tr id="HeaderMatcher-invert_match">
+<td><code>invertMatch</code></td>
+<td><code>bool</code></td>
+<td>
+<p>If specified, the match result will be inverted before checking. Defaults to false.</p>
+
+<p>Examples:</p>
+
+<ul>
+<li>The regex <em>\d&lbrace;3}</em> does not match the value <em>1234</em>, so it will match when inverted.</li>
+<li>The range [-10,0) will match the value -1, so it will not match when inverted.</li>
+</ul>
 
 </td>
 </tr>
@@ -1624,6 +1779,328 @@ matching or selection for final routing.</p>
 </tr>
 </tbody>
 </table>
+</section>
+<h2 id="QueryParameterMatcher">QueryParameterMatcher</h2>
+<section>
+<p>Query parameter matching treats the query string of a request&rsquo;s :path header
+as an ampersand-separated list of keys and/or key=value elements.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="QueryParameterMatcher-name">
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>
+<p>Specifies the name of a key that must be present in the requested
+<em>path</em>&rsquo;s query string.</p>
+
+</td>
+</tr>
+<tr id="QueryParameterMatcher-value">
+<td><code>value</code></td>
+<td><code>string</code></td>
+<td>
+<p>Specifies the value of the key. If the value is absent, a request
+that contains the key in its query string will match, whether the
+key appears with a value (e.g., &ldquo;?debug=true&rdquo;) or not (e.g., &ldquo;?debug&rdquo;)</p>
+
+</td>
+</tr>
+<tr id="QueryParameterMatcher-regex">
+<td><code>regex</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#boolvalue">google.protobuf.BoolValue</a></code></td>
+<td>
+<p>Specifies whether the query parameter value is a regular expression.
+Defaults to false. The entire query parameter value (i.e., the part to
+the right of the equals sign in &ldquo;key=value&rdquo;) must match the regex.
+E.g., the regex &ldquo;\d+$&rdquo; will match &ldquo;123&rdquo; but not &ldquo;a123&rdquo; or &ldquo;123a&rdquo;.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimit">RateLimit</h2>
+<section>
+<p>https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#route-ratelimit
+Global rate limiting :ref:<code>architecture overview &lt;arch_overview_rate_limit&gt;</code>.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimit-stage">
+<td><code>stage</code></td>
+<td><code>int32</code></td>
+<td>
+<p>Refers to the stage set in the filter. The rate limit configuration only
+applies to filters with the same stage number. The default stage number is
+0.</p>
+
+<p>.. note::</p>
+
+<p>The filter supports a range of 0 - 10 inclusively for stage numbers.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-disable_key">
+<td><code>disableKey</code></td>
+<td><code>string</code></td>
+<td>
+<p>The key to be set in runtime to disable this rate limit configuration.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-actions">
+<td><code>actions</code></td>
+<td><code><a href="#RateLimit-Action">RateLimit.Action[]</a></code></td>
+<td>
+<p>A list of actions that are to be applied for this rate limit configuration.
+Order matters as the actions are processed sequentially and the descriptor
+is composed by appending descriptor entries in that sequence. If an action
+cannot append a descriptor entry, no descriptor is generated for the
+configuration. See :ref:<code>composing actions
+&lt;config_http_filters_rate_limit_composing_actions&gt;</code> for additional documentation.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimit-Action">RateLimit.Action</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimit-Action-source_cluster" class="oneof oneof-start">
+<td><code>sourceCluster</code></td>
+<td><code><a href="#RateLimit-Action-SourceCluster">RateLimit.Action.SourceCluster (oneof)</a></code></td>
+<td>
+<p>Rate limit on source cluster.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-destination_cluster" class="oneof">
+<td><code>destinationCluster</code></td>
+<td><code><a href="#RateLimit-Action-DestinationCluster">RateLimit.Action.DestinationCluster (oneof)</a></code></td>
+<td>
+<p>Rate limit on destination cluster.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-request_headers" class="oneof">
+<td><code>requestHeaders</code></td>
+<td><code><a href="#RateLimit-Action-RequestHeaders">RateLimit.Action.RequestHeaders (oneof)</a></code></td>
+<td>
+<p>Rate limit on request headers.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-remote_address" class="oneof">
+<td><code>remoteAddress</code></td>
+<td><code><a href="#RateLimit-Action-RemoteAddress">RateLimit.Action.RemoteAddress (oneof)</a></code></td>
+<td>
+<p>Rate limit on remote address.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-generic_key" class="oneof">
+<td><code>genericKey</code></td>
+<td><code><a href="#RateLimit-Action-GenericKey">RateLimit.Action.GenericKey (oneof)</a></code></td>
+<td>
+<p>Rate limit on a generic key.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-header_value_match" class="oneof">
+<td><code>headerValueMatch</code></td>
+<td><code><a href="#RateLimit-Action-HeaderValueMatch">RateLimit.Action.HeaderValueMatch (oneof)</a></code></td>
+<td>
+<p>Rate limit on the existence of request headers.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimit-Action-DestinationCluster">RateLimit.Action.DestinationCluster</h2>
+<section>
+<p>The following descriptor entry is appended to the descriptor:</p>
+
+<p>.. code-block:: cpp</p>
+
+<p>(&ldquo;destination_cluster&rdquo;, &ldquo;<routed target cluster>&rdquo;)</p>
+
+<p>Once a request matches against a route table rule, a routed cluster is determined by one of
+the following :ref:<code>route table configuration &lt;envoy_api_msg_RouteConfiguration&gt;</code>
+settings:</p>
+
+<ul>
+<li>:ref:<code>cluster &lt;envoy_api_field_route.RouteAction.cluster&gt;</code> indicates the upstream cluster
+to route to.</li>
+<li>:ref:<code>weighted_clusters &lt;envoy_api_field_route.RouteAction.weighted_clusters&gt;</code>
+chooses a cluster randomly from a set of clusters with attributed weight.</li>
+<li>:ref:<code>cluster_header &lt;envoy_api_field_route.RouteAction.cluster_header&gt;</code> indicates which
+header in the request contains the target cluster.</li>
+</ul>
+
+</section>
+<h2 id="RateLimit-Action-GenericKey">RateLimit.Action.GenericKey</h2>
+<section>
+<p>The following descriptor entry is appended to the descriptor:</p>
+
+<p>.. code-block:: cpp</p>
+
+<p>(&ldquo;generic<em>key&rdquo;, &ldquo;<descriptor</em>value&gt;&rdquo;)</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimit-Action-GenericKey-descriptor_value">
+<td><code>descriptorValue</code></td>
+<td><code>string</code></td>
+<td>
+<p>The value to use in the descriptor entry.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimit-Action-HeaderValueMatch">RateLimit.Action.HeaderValueMatch</h2>
+<section>
+<p>The following descriptor entry is appended to the descriptor:</p>
+
+<p>.. code-block:: cpp</p>
+
+<p>(&ldquo;header<em>match&rdquo;, &ldquo;<descriptor</em>value&gt;&rdquo;)</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimit-Action-HeaderValueMatch-descriptor_value">
+<td><code>descriptorValue</code></td>
+<td><code>string</code></td>
+<td>
+<p>The value to use in the descriptor entry.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-HeaderValueMatch-expect_match">
+<td><code>expectMatch</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#boolvalue">google.protobuf.BoolValue</a></code></td>
+<td>
+<p>If set to true, the action will append a descriptor entry when the
+request matches the headers. If set to false, the action will append a
+descriptor entry when the request does not match the headers. The
+default value is true.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-HeaderValueMatch-headers">
+<td><code>headers</code></td>
+<td><code><a href="#HeaderMatcher">HeaderMatcher[]</a></code></td>
+<td>
+<p>Specifies a set of headers that the rate limit action should match
+on. The action will check the request’s headers against all the
+specified headers in the config. A match will happen if all the
+headers in the config are present in the request with the same values
+(or based on presence if the value field is not in the config).</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimit-Action-RemoteAddress">RateLimit.Action.RemoteAddress</h2>
+<section>
+<p>The following descriptor entry is appended to the descriptor and is populated using the
+trusted address from :ref:<code>x-forwarded-for &lt;config_http_conn_man_headers_x-forwarded-for&gt;</code>:</p>
+
+<p>.. code-block:: cpp</p>
+
+<p>(&ldquo;remote_address&rdquo;, &ldquo;<trusted address from x-forwarded-for>&rdquo;)</p>
+
+</section>
+<h2 id="RateLimit-Action-RequestHeaders">RateLimit.Action.RequestHeaders</h2>
+<section>
+<p>The following descriptor entry is appended when a header contains a key that matches the
+<em>header_name</em>:</p>
+
+<p>.. code-block:: cpp</p>
+
+<p>(&rdquo;<descriptor_key>&rdquo;, &ldquo;<header_value_queried_from_header>&rdquo;)</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimit-Action-RequestHeaders-header_name">
+<td><code>headerName</code></td>
+<td><code>string</code></td>
+<td>
+<p>The header name to be queried from the request headers. The header’s
+value is used to populate the value of the descriptor entry for the
+descriptor_key.</p>
+
+</td>
+</tr>
+<tr id="RateLimit-Action-RequestHeaders-descriptor_key">
+<td><code>descriptorKey</code></td>
+<td><code>string</code></td>
+<td>
+<p>The key to use in the descriptor entry.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimit-Action-SourceCluster">RateLimit.Action.SourceCluster</h2>
+<section>
+<p>The following descriptor entry is appended to the descriptor:</p>
+
+<p>.. code-block:: cpp</p>
+
+<p>(&ldquo;source_cluster&rdquo;, &ldquo;<local service cluster>&rdquo;)</p>
+
+<p><local service cluster> is derived from the :option:<code>--service-cluster</code> option.</p>
+
 </section>
 <h2 id="RouteDestination">RouteDestination</h2>
 <section>
@@ -2005,6 +2482,14 @@ defines an export to all namespaces.</p>
 
 <p>NOTE: in the current release, the <code>exportTo</code> value is restricted to
 &ldquo;.&rdquo; or &ldquo;*&rdquo; (i.e., the current namespace or all namespaces).</p>
+
+</td>
+</tr>
+<tr id="VirtualService-rate_limits">
+<td><code>rateLimits</code></td>
+<td><code><a href="#RateLimit">RateLimit[]</a></code></td>
+<td>
+<p>rate limiter config for virtual service</p>
 
 </td>
 </tr>
