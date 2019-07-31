@@ -208,6 +208,7 @@ type Server struct {
 	configController model.ConfigStoreCache
 	mixerSAN         []string
 	kubeClient       kubernetes.Interface
+	//rlsClient
 	startFuncs       []startFunc
 	multicluster     *clusterregistry.Multicluster
 	httpServer       *http.Server
@@ -495,6 +496,20 @@ func (s *Server) getKubeCfgFile(args *PilotArgs) string {
 
 // initKubeClient creates the k8s client if running in an k8s environment.
 func (s *Server) initKubeClient(args *PilotArgs) error {
+	if hasKubeRegistry(args) && args.Config.FileDir == "" {
+		client, kuberr := kubelib.CreateClientset(s.getKubeCfgFile(args), "")
+		if kuberr != nil {
+			return multierror.Prefix(kuberr, "failed to connect to Kubernetes API.")
+		}
+		s.kubeClient = client
+
+	}
+
+	return nil
+}
+
+// initRlsClient creates the RLS client if running with rate limiter service enable.
+func (s *Server) initRlsClient(args *PilotArgs) error {
 	if hasKubeRegistry(args) && args.Config.FileDir == "" {
 		client, kuberr := kubelib.CreateClientset(s.getKubeCfgFile(args), "")
 		if kuberr != nil {

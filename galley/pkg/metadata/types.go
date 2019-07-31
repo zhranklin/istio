@@ -175,6 +175,9 @@ var (
 	// istio/networking/v1alpha3/virtualservices metadata
 	IstioNetworkingV1alpha3Virtualservices resource.Info
 
+	// istio/networking/v1alpha3/sharedconfigs metadata
+	IstioNetworkingV1alpha3Sharedconfigs resource.Info
+
 	// istio/policy/v1beta1/attributemanifests metadata
 	IstioPolicyV1beta1Attributemanifests resource.Info
 

@@ -17,6 +17,7 @@ syntax = "proto3";
 import "google/protobuf/duration.proto";
 import "google/protobuf/wrappers.proto";
 
+
 // $title: Virtual Service
 // $description: Configuration affecting label/content routing, sni routing, etc.
 // $location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
@@ -603,6 +604,10 @@ message RateLimit {
 //   value.
 //
 message HeaderMatcher {
+    message Int64Range {
+        int64 start = 1;
+        int64 end = 2;
+    }
     // Specifies the name of the header in the request.
     string name = 1;
 
@@ -640,7 +645,7 @@ message HeaderMatcher {
         //
         // * For range [-10,0), route will match for header value -1, but not for 0, "somestring", 10.9,
         //   "-1somestring"
-        int64 range_match = 6;
+        Int64Range range_match = 6;
 
         // If specified, header match will be performed based on whether the header is in the
         // request.

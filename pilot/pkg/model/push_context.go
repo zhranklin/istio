@@ -584,6 +584,10 @@ func (ps *PushContext) InitContext(env *Environment) error {
 		return err
 	}
 
+	if err = ps.initSharedConfigs(env); err != nil {
+		return err
+	}
+
 	if err = ps.initDestinationRules(env); err != nil {
 		return err
 	}
@@ -752,6 +756,10 @@ func (ps *PushContext) initVirtualServices(env *Environment) error {
 		}
 	}
 
+	return nil
+}
+
+func (ps *PushContext) initSharedConfigs(env *Environment) error {
 	return nil
 }
 

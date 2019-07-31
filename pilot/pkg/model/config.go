@@ -344,6 +344,17 @@ var (
 		Collection:  metadata.IstioNetworkingV1alpha3Virtualservices.Collection.String(),
 	}
 
+	// SharedConfig describes v1alpha3 shared configs(global rate limiter config)
+	SharedConfig = ProtoSchema{
+		Type:        "shared-config",
+		Plural:      "shared-configs",
+		Group:       "networking",
+		Version:     "v1alpha3",
+		MessageName: "istio.networking.v1alpha3.SharedConfig",
+		Validate:    ValidateSharedConfig,
+		Collection:  metadata.IstioNetworkingV1alpha3Sharedconfigs.Collection.String(),
+	}
+
 	// Gateway describes a gateway (how a proxy is exposed on the network)
 	Gateway = ProtoSchema{
 		Type:        "gateway",
@@ -517,6 +528,7 @@ var (
 	// IstioConfigTypes lists all Istio config types with schemas and validation
 	IstioConfigTypes = ConfigDescriptor{
 		VirtualService,
+		SharedConfig,
 		Gateway,
 		ServiceEntry,
 		DestinationRule,

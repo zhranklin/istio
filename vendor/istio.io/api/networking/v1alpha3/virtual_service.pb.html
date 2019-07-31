@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 38
+number_of_entries: 39
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -1418,7 +1418,7 @@ request header value matches the regex. The regex grammar used in the value fiel
 </tr>
 <tr id="HeaderMatcher-range_match" class="oneof">
 <td><code>rangeMatch</code></td>
-<td><code>int64 (oneof)</code></td>
+<td><code><a href="#HeaderMatcher-Int64Range">HeaderMatcher.Int64Range (oneof)</a></code></td>
 <td>
 <p>If specified, header match will be performed based on range.
 The rule will match if the request header value is within this range.
@@ -1488,6 +1488,32 @@ Note: empty suffix is not allowed, please use present_match instead.</p>
 <li>The range [-10,0) will match the value -1, so it will not match when inverted.</li>
 </ul>
 
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="HeaderMatcher-Int64Range">HeaderMatcher.Int64Range</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="HeaderMatcher-Int64Range-start">
+<td><code>start</code></td>
+<td><code>int64</code></td>
+<td>
+</td>
+</tr>
+<tr id="HeaderMatcher-Int64Range-end">
+<td><code>end</code></td>
+<td><code>int64</code></td>
+<td>
 </td>
 </tr>
 </tbody>
