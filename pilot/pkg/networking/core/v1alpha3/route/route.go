@@ -365,6 +365,8 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		action := &route.RouteAction{
 			Cors:        translateCORSPolicy(in.CorsPolicy, node),
 			RetryPolicy: retry.ConvertPolicy(in.Retries),
+			// translate rate limiter config
+			RateLimits: translateRateLimits(in.RateLimits),
 		}
 
 		if in.Timeout != nil {
@@ -706,6 +708,108 @@ func translateCORSPolicy(in *networking.CorsPolicy, node *model.Proxy) *route.Co
 		out.MaxAge = strconv.FormatInt(in.MaxAge.GetSeconds(), 10)
 	}
 	return &out
+}
+
+func translateRateLimits(in []*networking.RateLimit) []*route.RateLimit {
+	if in == nil {
+		return nil
+	}
+
+	out := make([]*route.RateLimit, len(in))
+	for i, srcLimit := range in {
+		dstLimit := route.RateLimit{}
+		// copy stage and disable key
+		dstLimit.Stage = &types.UInt32Value{Value: uint32(srcLimit.Stage)}
+		dstLimit.DisableKey = srcLimit.DisableKey
+		dstLimit.Actions = make([]*route.RateLimit_Action, len(srcLimit.Actions))
+
+		for j, srcAction := range srcLimit.Actions {
+			dstAction := route.RateLimit_Action{}
+			dstActionSpecifier := srcAction.GetActionSpecifier()
+			switch dstActionSpecifier.(type) {
+			case *networking.RateLimit_Action_SourceCluster_:
+				dstAction.ActionSpecifier = &route.RateLimit_Action_SourceCluster_{
+					SourceCluster: &route.RateLimit_Action_SourceCluster{},
+				}
+			case *networking.RateLimit_Action_DestinationCluster_:
+				dstAction.ActionSpecifier = &route.RateLimit_Action_DestinationCluster_{
+					DestinationCluster: &route.RateLimit_Action_DestinationCluster{},
+				}
+			case *networking.RateLimit_Action_RequestHeaders_:
+				dstAction.ActionSpecifier = &route.RateLimit_Action_RequestHeaders_{
+					RequestHeaders: &route.RateLimit_Action_RequestHeaders{
+						HeaderName:    srcAction.GetRequestHeaders().HeaderName,
+						DescriptorKey: srcAction.GetRequestHeaders().DescriptorKey,
+					},
+				}
+			case *networking.RateLimit_Action_RemoteAddress_:
+				dstAction.ActionSpecifier = &route.RateLimit_Action_RemoteAddress_{
+					RemoteAddress: &route.RateLimit_Action_RemoteAddress{},
+				}
+			case *networking.RateLimit_Action_GenericKey_:
+				dstAction.ActionSpecifier = &route.RateLimit_Action_GenericKey_{
+					GenericKey: &route.RateLimit_Action_GenericKey{
+						DescriptorValue: srcAction.GetGenericKey().DescriptorValue,
+					},
+				}
+			case *networking.RateLimit_Action_HeaderValueMatch_:
+				srcHeaderMatch := srcAction.GetHeaderValueMatch()
+				dstHeaderMatchers := make([]*route.HeaderMatcher, len(srcHeaderMatch.Headers))
+				for k, srcHeader := range srcHeaderMatch.Headers {
+					dstMatcher := route.HeaderMatcher{
+						Name:        srcHeader.Name,
+						InvertMatch: srcHeader.GetInvertMatch(),
+					}
+					hms := srcHeader.GetHeaderMatchSpecifier()
+					if hms != nil {
+						switch hms.(type) {
+						case *networking.HeaderMatcher_ExactMatch:
+							dstMatcher.HeaderMatchSpecifier = &route.HeaderMatcher_ExactMatch{
+								ExactMatch: srcHeader.GetExactMatch(),
+							}
+						case *networking.HeaderMatcher_RegexMatch:
+							dstMatcher.HeaderMatchSpecifier = &route.HeaderMatcher_RegexMatch{
+								RegexMatch: srcHeader.GetRegexMatch(),
+							}
+						case *networking.HeaderMatcher_RangeMatch:
+							dstMatcher.HeaderMatchSpecifier = &route.HeaderMatcher_RangeMatch{
+								RangeMatch: &xdstype.Int64Range{
+									Start: srcHeader.GetRangeMatch().Start,
+									End:   srcHeader.GetRangeMatch().End,
+								},
+							}
+						case *networking.HeaderMatcher_PresentMatch:
+							dstMatcher.HeaderMatchSpecifier = &route.HeaderMatcher_PresentMatch{
+								PresentMatch: srcHeader.GetPresentMatch(),
+							}
+						case *networking.HeaderMatcher_PrefixMatch:
+							dstMatcher.HeaderMatchSpecifier = &route.HeaderMatcher_PrefixMatch{
+								PrefixMatch: srcHeader.GetPrefixMatch(),
+							}
+						case *networking.HeaderMatcher_SuffixMatch:
+							dstMatcher.HeaderMatchSpecifier = &route.HeaderMatcher_SuffixMatch{
+								SuffixMatch: srcHeader.GetSuffixMatch(),
+							}
+						}
+					}
+
+					dstHeaderMatchers[k] = &dstMatcher
+				}
+				dstAction.ActionSpecifier = &route.RateLimit_Action_HeaderValueMatch_{
+					HeaderValueMatch: &route.RateLimit_Action_HeaderValueMatch{
+						DescriptorValue: srcHeaderMatch.DescriptorValue,
+						ExpectMatch:     srcHeaderMatch.ExpectMatch,
+						Headers:         dstHeaderMatchers,
+					},
+				}
+			}
+
+			dstLimit.Actions[j] = &dstAction
+		}
+
+		out[i] = &dstLimit
+	}
+	return out
 }
 
 // getRouteOperation returns readable route description for trace.

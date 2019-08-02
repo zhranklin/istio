@@ -80,6 +80,7 @@ import (
 	"istio.io/istio/pkg/mcp/creds"
 	"istio.io/istio/pkg/mcp/monitoring"
 	"istio.io/istio/pkg/mcp/sink"
+	rlslib "istio.io/istio/pkg/rls"
 	"istio.io/istio/pkg/version"
 )
 
@@ -188,8 +189,9 @@ type PilotArgs struct {
 
 	NsfUrlPrefix string
 
-	NsfHostPrefix string
-	NsfHostSuffix string
+	NsfHostPrefix  string
+	NsfHostSuffix  string
+	RLSServerAddrs []string
 }
 
 // Server contains the runtime configuration for the Pilot discovery service.
@@ -208,6 +210,7 @@ type Server struct {
 	configController model.ConfigStoreCache
 	mixerSAN         []string
 	kubeClient       kubernetes.Interface
+	rlsClientSet     rlslib.ClientSetInterface
 	startFuncs       []startFunc
 	multicluster     *clusterregistry.Multicluster
 	httpServer       *http.Server
@@ -246,6 +249,9 @@ func NewServer(args PilotArgs) (*Server, error) {
 	// Apply the arguments to the configuration.
 	if err := s.initKubeClient(&args); err != nil {
 		return nil, fmt.Errorf("kube client: %v", err)
+	}
+	if err := s.initRlsClient(&args); err != nil {
+		return nil, fmt.Errorf("rls client :%v", err)
 	}
 	if err := s.initMesh(&args); err != nil {
 		return nil, fmt.Errorf("mesh: %v", err)
@@ -502,6 +508,19 @@ func (s *Server) initKubeClient(args *PilotArgs) error {
 		}
 		s.kubeClient = client
 
+	}
+
+	return nil
+}
+
+// initRlsClient creates the RLS client if running with rate limiter service enable.
+func (s *Server) initRlsClient(args *PilotArgs) error {
+	if args.RLSServerAddrs != nil && len(args.RLSServerAddrs) > 0 {
+		client, rlserr := rlslib.CreateClientSet(args.RLSServerAddrs)
+		if rlserr != nil {
+			return multierror.Prefix(rlserr, "failed to connect to RLS server ")
+		}
+		s.rlsClientSet = client
 	}
 
 	return nil
@@ -1025,7 +1044,7 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 
 	s.EnvoyXdsServer = envoyv2.NewDiscoveryServer(environment,
 		istio_networking.NewConfigGenerator(args.Plugins),
-		s.ServiceController, s.kubeRegistry, s.configController)
+		s.ServiceController, s.kubeRegistry, s.configController, s.rlsClientSet)
 	s.EnvoyXdsServer.InitDebug(s.mux, s.ServiceController)
 	if s.kubeRegistry != nil {
 		// kubeRegistry may use the environment for push status reporting.

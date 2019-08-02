@@ -6,16 +6,14 @@ package core
 import (
 	bytes "bytes"
 	fmt "fmt"
-	io "io"
-	math "math"
-
+	_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 	types "github.com/gogo/protobuf/types"
 	_ "github.com/lyft/protoc-gen-validate/validate"
-
-	_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	io "io"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

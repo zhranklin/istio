@@ -1,0 +1,162 @@
+---
+title: istio.networking.v1alpha3
+layout: protoc-gen-docs
+generator: protoc-gen-docs
+number_of_entries: 5
+---
+<h2 id="RateLimitConfig">RateLimitConfig</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimitConfig-domain">
+<td><code>domain</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="RateLimitConfig-descriptors">
+<td><code>descriptors</code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor">RateLimitDescriptor[]</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimitDescriptor">RateLimitDescriptor</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimitDescriptor-key">
+<td><code>key</code></td>
+<td><code>string</code></td>
+<td>
+<p>Descriptor key.</p>
+
+</td>
+</tr>
+<tr id="RateLimitDescriptor-value">
+<td><code>value</code></td>
+<td><code>string</code></td>
+<td>
+<p>Descriptor value.</p>
+
+</td>
+</tr>
+<tr id="RateLimitDescriptor-rate_limit">
+<td><code>rateLimit</code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-RateLimit">RateLimitDescriptor.RateLimit</a></code></td>
+<td>
+<p>Rate Limiter Configuration</p>
+
+</td>
+</tr>
+<tr id="RateLimitDescriptor-descriptors">
+<td><code>descriptors</code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor">RateLimitDescriptor[]</a></code></td>
+<td>
+<p>Optional Rate Limit Descriptor</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimitDescriptor-RateLimit">RateLimitDescriptor.RateLimit</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimitDescriptor-RateLimit-requests_per_unit">
+<td><code>requestsPerUnit</code></td>
+<td><code>uint32</code></td>
+<td>
+</td>
+</tr>
+<tr id="RateLimitDescriptor-RateLimit-unit">
+<td><code>unit</code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-RateLimit-Unit">RateLimitDescriptor.RateLimit.Unit</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="RateLimitDescriptor-RateLimit-Unit">RateLimitDescriptor.RateLimit.Unit</h2>
+<section>
+<table class="enum-values">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RateLimitDescriptor-RateLimit-Unit-UNKNOWN">
+<td><code>UNKNOWN</code></td>
+<td>
+</td>
+</tr>
+<tr id="RateLimitDescriptor-RateLimit-Unit-SECOND">
+<td><code>SECOND</code></td>
+<td>
+</td>
+</tr>
+<tr id="RateLimitDescriptor-RateLimit-Unit-MINUTE">
+<td><code>MINUTE</code></td>
+<td>
+</td>
+</tr>
+<tr id="RateLimitDescriptor-RateLimit-Unit-HOUR">
+<td><code>HOUR</code></td>
+<td>
+</td>
+</tr>
+<tr id="RateLimitDescriptor-RateLimit-Unit-DAY">
+<td><code>DAY</code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="SharedConfig">SharedConfig</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="SharedConfig-rate_limit_configs">
+<td><code>rateLimitConfigs</code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitConfig">RateLimitConfig[]</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>

@@ -17,6 +17,7 @@ syntax = "proto3";
 import "google/protobuf/duration.proto";
 import "google/protobuf/wrappers.proto";
 
+
 // $title: Virtual Service
 // $description: Configuration affecting label/content routing, sni routing, etc.
 // $location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
@@ -194,6 +195,9 @@ message VirtualService {
     // NOTE: in the current release, the `exportTo` value is restricted to
     // "." or "*" (i.e., the current namespace or all namespaces).
     repeated string export_to = 6;
+
+    // rate limiter config for virtual service
+    repeated RateLimit rate_limits = 7;
 }
 
 // Destination indicates the network addressable service to which the
@@ -438,6 +442,258 @@ message HTTPRoute {
 
     // api name
     string name = 20;
+
+    // rate limiter config for http route
+    repeated RateLimit rate_limits = 21;
+}
+
+// https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#route-ratelimit
+// Global rate limiting :ref:`architecture overview <arch_overview_rate_limit>`.
+message RateLimit {
+    // Refers to the stage set in the filter. The rate limit configuration only
+    // applies to filters with the same stage number. The default stage number is
+    // 0.
+    //
+    // .. note::
+    //
+    //   The filter supports a range of 0 - 10 inclusively for stage numbers.
+    int32 stage = 1;
+
+    // The key to be set in runtime to disable this rate limit configuration.
+    string disable_key = 2;
+
+    message Action {
+        // The following descriptor entry is appended to the descriptor:
+        //
+        // .. code-block:: cpp
+        //
+        //   ("source_cluster", "<local service cluster>")
+        //
+        // <local service cluster> is derived from the :option:`--service-cluster` option.
+        message SourceCluster {
+        }
+
+        // The following descriptor entry is appended to the descriptor:
+        //
+        // .. code-block:: cpp
+        //
+        //   ("destination_cluster", "<routed target cluster>")
+        //
+        // Once a request matches against a route table rule, a routed cluster is determined by one of
+        // the following :ref:`route table configuration <envoy_api_msg_RouteConfiguration>`
+        // settings:
+        //
+        // * :ref:`cluster <envoy_api_field_route.RouteAction.cluster>` indicates the upstream cluster
+        //   to route to.
+        // * :ref:`weighted_clusters <envoy_api_field_route.RouteAction.weighted_clusters>`
+        //   chooses a cluster randomly from a set of clusters with attributed weight.
+        // * :ref:`cluster_header <envoy_api_field_route.RouteAction.cluster_header>` indicates which
+        //   header in the request contains the target cluster.
+        message DestinationCluster {
+        }
+
+        // The following descriptor entry is appended when a header contains a key that matches the
+        // *header_name*:
+        //
+        // .. code-block:: cpp
+        //
+        //   ("<descriptor_key>", "<header_value_queried_from_header>")
+        message RequestHeaders {
+            // The header name to be queried from the request headers. The header’s
+            // value is used to populate the value of the descriptor entry for the
+            // descriptor_key.
+            string header_name = 1;
+
+            // The key to use in the descriptor entry.
+            string descriptor_key = 2;
+        }
+
+        // The following descriptor entry is appended to the descriptor and is populated using the
+        // trusted address from :ref:`x-forwarded-for <config_http_conn_man_headers_x-forwarded-for>`:
+        //
+        // .. code-block:: cpp
+        //
+        //   ("remote_address", "<trusted address from x-forwarded-for>")
+        message RemoteAddress {
+        }
+
+        // The following descriptor entry is appended to the descriptor:
+        //
+        // .. code-block:: cpp
+        //
+        //   ("generic_key", "<descriptor_value>")
+        message GenericKey {
+            // The value to use in the descriptor entry.
+            string descriptor_value = 1;
+        }
+
+        // The following descriptor entry is appended to the descriptor:
+        //
+        // .. code-block:: cpp
+        //
+        //   ("header_match", "<descriptor_value>")
+        message HeaderValueMatch {
+            // The value to use in the descriptor entry.
+            string descriptor_value = 1;
+
+            // If set to true, the action will append a descriptor entry when the
+            // request matches the headers. If set to false, the action will append a
+            // descriptor entry when the request does not match the headers. The
+            // default value is true.
+            google.protobuf.BoolValue expect_match = 2;
+
+            // Specifies a set of headers that the rate limit action should match
+            // on. The action will check the request’s headers against all the
+            // specified headers in the config. A match will happen if all the
+            // headers in the config are present in the request with the same values
+            // (or based on presence if the value field is not in the config).
+            repeated HeaderMatcher headers = 3;
+        }
+
+        oneof action_specifier {
+            // Rate limit on source cluster.
+            SourceCluster source_cluster = 1;
+
+            // Rate limit on destination cluster.
+            DestinationCluster destination_cluster = 2;
+
+            // Rate limit on request headers.
+            RequestHeaders request_headers = 3;
+
+            // Rate limit on remote address.
+            RemoteAddress remote_address = 4;
+
+            // Rate limit on a generic key.
+            GenericKey generic_key = 5;
+
+            // Rate limit on the existence of request headers.
+            HeaderValueMatch header_value_match = 6;
+        }
+    }
+
+    // A list of actions that are to be applied for this rate limit configuration.
+    // Order matters as the actions are processed sequentially and the descriptor
+    // is composed by appending descriptor entries in that sequence. If an action
+    // cannot append a descriptor entry, no descriptor is generated for the
+    // configuration. See :ref:`composing actions
+    // <config_http_filters_rate_limit_composing_actions>` for additional documentation.
+    repeated Action actions = 3;
+}
+
+// .. attention::
+//
+//   Internally, Envoy always uses the HTTP/2 *:authority* header to represent the HTTP/1 *Host*
+//   header. Thus, if attempting to match on *Host*, match on *:authority* instead.
+//
+// .. attention::
+//
+//   To route on HTTP method, use the special HTTP/2 *:method* header. This works for both
+//   HTTP/1 and HTTP/2 as Envoy normalizes headers. E.g.,
+//
+//   .. code-block:: json
+//
+//     {
+//       "name": ":method",
+//       "exact_match": "POST"
+//     }
+//
+// .. attention::
+//   In the absence of any header match specifier, match will default to :ref:`present_match
+//   <envoy_api_field_route.HeaderMatcher.present_match>`. i.e, a request that has the :ref:`name
+//   <envoy_api_field_route.HeaderMatcher.name>` header will match, regardless of the header's
+//   value.
+//
+message HeaderMatcher {
+    message Int64Range {
+        int64 start = 1;
+        int64 end = 2;
+    }
+    // Specifies the name of the header in the request.
+    string name = 1;
+
+    reserved 2; // value deprecated by :ref:`exact_match
+    // <envoy_api_field_route.HeaderMatcher.exact_match>`
+
+    reserved 3; // regex deprecated by :ref:`regex_match
+    // <envoy_api_field_route.HeaderMatcher.regex_match>`
+
+    // Specifies how the header match will be performed to route the request.
+    oneof header_match_specifier {
+        // If specified, header match will be performed based on the value of the header.
+        string exact_match = 4;
+
+        // If specified, this regex string is a regular expression rule which implies the entire request
+        // header value must match the regex. The rule will not match if only a subsequence of the
+        // request header value matches the regex. The regex grammar used in the value field is defined
+        // `here <https://en.cppreference.com/w/cpp/regex/ecmascript>`_.
+        //
+        // Examples:
+        //
+        // * The regex *\d{3}* matches the value *123*
+        // * The regex *\d{3}* does not match the value *1234*
+        // * The regex *\d{3}* does not match the value *123.456*
+        string regex_match = 5;
+
+        // If specified, header match will be performed based on range.
+        // The rule will match if the request header value is within this range.
+        // The entire request header value must represent an integer in base 10 notation: consisting of
+        // an optional plus or minus sign followed by a sequence of digits. The rule will not match if
+        // the header value does not represent an integer. Match will fail for empty values, floating
+        // point numbers or if only a subsequence of the header value is an integer.
+        //
+        // Examples:
+        //
+        // * For range [-10,0), route will match for header value -1, but not for 0, "somestring", 10.9,
+        //   "-1somestring"
+        Int64Range range_match = 6;
+
+        // If specified, header match will be performed based on whether the header is in the
+        // request.
+        bool present_match = 7;
+
+        // If specified, header match will be performed based on the prefix of the header value.
+        // Note: empty prefix is not allowed, please use present_match instead.
+        //
+        // Examples:
+        //
+        // * The prefix *abcd* matches the value *abcdxyz*, but not for *abcxyz*.
+        string prefix_match = 9;
+
+        // If specified, header match will be performed based on the suffix of the header value.
+        // Note: empty suffix is not allowed, please use present_match instead.
+        //
+        // Examples:
+        //
+        // * The suffix *abcd* matches the value *xyzabcd*, but not for *xyzbcd*.
+        string suffix_match = 10;
+    }
+
+    // If specified, the match result will be inverted before checking. Defaults to false.
+    //
+    // Examples:
+    //
+    // * The regex *\d{3}* does not match the value *1234*, so it will match when inverted.
+    // * The range [-10,0) will match the value -1, so it will not match when inverted.
+    bool invert_match = 8;
+}
+
+// Query parameter matching treats the query string of a request's :path header
+// as an ampersand-separated list of keys and/or key=value elements.
+message QueryParameterMatcher {
+    // Specifies the name of a key that must be present in the requested
+    // *path*'s query string.
+    string name = 1;
+
+    // Specifies the value of the key. If the value is absent, a request
+    // that contains the key in its query string will match, whether the
+    // key appears with a value (e.g., "?debug=true") or not (e.g., "?debug")
+    string value = 3;
+
+    // Specifies whether the query parameter value is a regular expression.
+    // Defaults to false. The entire query parameter value (i.e., the part to
+    // the right of the equals sign in "key=value") must match the regex.
+    // E.g., the regex "\d+$" will match "123" but not "a123" or "123a".
+    google.protobuf.BoolValue regex = 4;
 }
 
 message HttpTransformation {
@@ -492,6 +748,7 @@ message DataSource {
     bytes inlinebyte = 2;
     string inlineString = 3;
 }
+
 // Header manipulation rules
 message Headers {
     // Header manipulation rules to apply before forwarding a request
