@@ -15,6 +15,7 @@
 package v2
 
 import (
+	"istio.io/istio/pkg/rls"
 	"strconv"
 	"sync"
 	"time"
@@ -142,6 +143,8 @@ type DiscoveryServer struct {
 
 	updateChannel chan *updateReq
 
+	rlsClientSet rlsclient.ClientSetInterface
+
 	// mutex used for config update scheduling (former cache update mutex)
 	updateMutex sync.RWMutex
 }
@@ -190,22 +193,19 @@ func intEnv(envVal string, def int) int {
 }
 
 // NewDiscoveryServer creates DiscoveryServer that sources data from Pilot's internal mesh data structures
-func NewDiscoveryServer(
-	env *model.Environment,
-	generator core.ConfigGenerator,
-	ctl model.Controller,
-	kuebController *kube.Controller,
-	configCache model.ConfigStoreCache) *DiscoveryServer {
+func NewDiscoveryServer(env *model.Environment, generator core.ConfigGenerator, ctl model.Controller,
+	kubeController *kube.Controller, configCache model.ConfigStoreCache, rlsClientSet rlsclient.ClientSetInterface) *DiscoveryServer {
 	out := &DiscoveryServer{
 		Env:                     env,
 		ConfigGenerator:         generator,
 		ConfigController:        configCache,
-		KubeController:          kuebController,
+		KubeController:          kubeController,
 		EndpointShardsByService: map[string]*EndpointShards{},
 		WorkloadsByID:           map[string]*Workload{},
 		edsUpdates:              map[string]struct{}{},
 		concurrentPushLimit:     make(chan struct{}, 20), // TODO(hzxuzhonghu): support configuration
 		updateChannel:           make(chan *updateReq, 10),
+		rlsClientSet:            rlsClientSet,
 	}
 	env.PushContext = model.NewPushContext()
 	go out.handleUpdates()
@@ -227,8 +227,16 @@ func NewDiscoveryServer(
 	if configCache != nil {
 		// TODO: changes should not trigger a full recompute of LDS/RDS/CDS/EDS
 		// (especially mixerclient HTTP and quota)
-		configHandler := func(model.Config, model.Event) { out.clearCache() }
+		configHandler := func(c model.Config, e model.Event) {
+			if c.Type == model.SharedConfig.Type {
+				if rlsClientSet != nil {
+					rlsClientSet.DoSharedConfigSync(c, e)
+				}
+			}
+			out.clearCache()
+		}
 		for _, descriptor := range model.IstioConfigTypes {
+			// handle shared config for update rate limiter service
 			configCache.RegisterEventHandler(descriptor.Type, configHandler)
 		}
 	}
@@ -390,7 +398,7 @@ func (s *DiscoveryServer) clearCache() {
 	s.ConfigUpdate(true)
 }
 
-// ConfigUpdate implements ConfigUpdater interface, used to request pushes.
+// ConfigUpdate implements DoSharedConfigSync interface, used to request pushes.
 // It replaces the 'clear cache' from v1.
 func (s *DiscoveryServer) ConfigUpdate(full bool) {
 	s.updateChannel <- &updateReq{full: full}

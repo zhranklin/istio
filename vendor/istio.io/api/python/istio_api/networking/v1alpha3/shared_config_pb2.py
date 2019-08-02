@@ -19,14 +19,14 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='networking/v1alpha3/shared_config.proto',
   package='istio.networking.v1alpha3',
   syntax='proto3',
-  serialized_pb=_b('\n\'networking/v1alpha3/shared_config.proto\x12\x19istio.networking.v1alpha3\"V\n\x0cSharedConfig\x12\x46\n\x12rate_limit_configs\x18\x01 \x03(\x0b\x32*.istio.networking.v1alpha3.RateLimitConfig\"f\n\x0fRateLimitConfig\x12\x0e\n\x06\x64omain\x18\x01 \x01(\t\x12\x43\n\x0b\x64\x65scriptors\x18\x02 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\"\xd7\x03\n\x13RateLimitDescriptor\x12\x45\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x34.istio.networking.v1alpha3.RateLimitDescriptor.Entry\x1a\xf8\x02\n\x05\x45ntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12R\n\nrate_limit\x18\x03 \x01(\x0b\x32>.istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit\x12\x43\n\x0b\x64\x65scriptors\x18\x04 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\x1a\xb9\x01\n\tRateLimit\x12\x19\n\x11requests_per_unit\x18\x01 \x01(\r\x12Q\n\x04unit\x18\x02 \x01(\x0e\x32\x43.istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit.Unit\">\n\x04Unit\x12\x0b\n\x07UNKNOWN\x10\x00\x12\n\n\x06SECOND\x10\x01\x12\n\n\x06MINUTE\x10\x02\x12\x08\n\x04HOUR\x10\x03\x12\x07\n\x03\x44\x41Y\x10\x04\x42\"Z istio.io/api/networking/v1alpha3b\x06proto3')
+  serialized_pb=_b('\n\'networking/v1alpha3/shared_config.proto\x12\x19istio.networking.v1alpha3\"V\n\x0cSharedConfig\x12\x46\n\x12rate_limit_configs\x18\x01 \x03(\x0b\x32*.istio.networking.v1alpha3.RateLimitConfig\"f\n\x0fRateLimitConfig\x12\x0e\n\x06\x64omain\x18\x01 \x01(\t\x12\x43\n\x0b\x64\x65scriptors\x18\x02 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\"\xfa\x02\n\x13RateLimitDescriptor\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12L\n\nrate_limit\x18\x03 \x01(\x0b\x32\x38.istio.networking.v1alpha3.RateLimitDescriptor.RateLimit\x12\x43\n\x0b\x64\x65scriptors\x18\x04 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\x1a\xb3\x01\n\tRateLimit\x12\x19\n\x11requests_per_unit\x18\x01 \x01(\r\x12K\n\x04unit\x18\x02 \x01(\x0e\x32=.istio.networking.v1alpha3.RateLimitDescriptor.RateLimit.Unit\">\n\x04Unit\x12\x0b\n\x07UNKNOWN\x10\x00\x12\n\n\x06SECOND\x10\x01\x12\n\n\x06MINUTE\x10\x02\x12\x08\n\x04HOUR\x10\x03\x12\x07\n\x03\x44\x41Y\x10\x04\x42\"Z istio.io/api/networking/v1alpha3b\x06proto3')
 )
 
 
 
-_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT_UNIT = _descriptor.EnumDescriptor(
+_RATELIMITDESCRIPTOR_RATELIMIT_UNIT = _descriptor.EnumDescriptor(
   name='Unit',
-  full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit.Unit',
+  full_name='istio.networking.v1alpha3.RateLimitDescriptor.RateLimit.Unit',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -53,10 +53,10 @@ _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT_UNIT = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=672,
-  serialized_end=734,
+  serialized_start=579,
+  serialized_end=641,
 )
-_sym_db.RegisterEnumDescriptor(_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT_UNIT)
+_sym_db.RegisterEnumDescriptor(_RATELIMITDESCRIPTOR_RATELIMIT_UNIT)
 
 
 _SHAREDCONFIG = _descriptor.Descriptor(
@@ -128,22 +128,22 @@ _RATELIMITCONFIG = _descriptor.Descriptor(
 )
 
 
-_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT = _descriptor.Descriptor(
+_RATELIMITDESCRIPTOR_RATELIMIT = _descriptor.Descriptor(
   name='RateLimit',
-  full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit',
+  full_name='istio.networking.v1alpha3.RateLimitDescriptor.RateLimit',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='requests_per_unit', full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit.requests_per_unit', index=0,
+      name='requests_per_unit', full_name='istio.networking.v1alpha3.RateLimitDescriptor.RateLimit.requests_per_unit', index=0,
       number=1, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='unit', full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit.unit', index=1,
+      name='unit', full_name='istio.networking.v1alpha3.RateLimitDescriptor.RateLimit.unit', index=1,
       number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -154,7 +154,7 @@ _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
-    _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT_UNIT,
+    _RATELIMITDESCRIPTOR_RATELIMIT_UNIT,
   ],
   options=None,
   is_extendable=False,
@@ -162,59 +162,8 @@ _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=549,
-  serialized_end=734,
-)
-
-_RATELIMITDESCRIPTOR_ENTRY = _descriptor.Descriptor(
-  name='Entry',
-  full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='key', full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.key', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='value', full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.value', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='rate_limit', full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.rate_limit', index=2,
-      number=3, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='descriptors', full_name='istio.networking.v1alpha3.RateLimitDescriptor.Entry.descriptors', index=3,
-      number=4, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT, ],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=358,
-  serialized_end=734,
+  serialized_start=462,
+  serialized_end=641,
 )
 
 _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
@@ -225,8 +174,29 @@ _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='entries', full_name='istio.networking.v1alpha3.RateLimitDescriptor.entries', index=0,
-      number=1, type=11, cpp_type=10, label=3,
+      name='key', full_name='istio.networking.v1alpha3.RateLimitDescriptor.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='istio.networking.v1alpha3.RateLimitDescriptor.value', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='rate_limit', full_name='istio.networking.v1alpha3.RateLimitDescriptor.rate_limit', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='descriptors', full_name='istio.networking.v1alpha3.RateLimitDescriptor.descriptors', index=3,
+      number=4, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -234,7 +204,7 @@ _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_RATELIMITDESCRIPTOR_ENTRY, ],
+  nested_types=[_RATELIMITDESCRIPTOR_RATELIMIT, ],
   enum_types=[
   ],
   options=None,
@@ -244,18 +214,16 @@ _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=263,
-  serialized_end=734,
+  serialized_end=641,
 )
 
 _SHAREDCONFIG.fields_by_name['rate_limit_configs'].message_type = _RATELIMITCONFIG
 _RATELIMITCONFIG.fields_by_name['descriptors'].message_type = _RATELIMITDESCRIPTOR
-_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT.fields_by_name['unit'].enum_type = _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT_UNIT
-_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT.containing_type = _RATELIMITDESCRIPTOR_ENTRY
-_RATELIMITDESCRIPTOR_ENTRY_RATELIMIT_UNIT.containing_type = _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT
-_RATELIMITDESCRIPTOR_ENTRY.fields_by_name['rate_limit'].message_type = _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT
-_RATELIMITDESCRIPTOR_ENTRY.fields_by_name['descriptors'].message_type = _RATELIMITDESCRIPTOR
-_RATELIMITDESCRIPTOR_ENTRY.containing_type = _RATELIMITDESCRIPTOR
-_RATELIMITDESCRIPTOR.fields_by_name['entries'].message_type = _RATELIMITDESCRIPTOR_ENTRY
+_RATELIMITDESCRIPTOR_RATELIMIT.fields_by_name['unit'].enum_type = _RATELIMITDESCRIPTOR_RATELIMIT_UNIT
+_RATELIMITDESCRIPTOR_RATELIMIT.containing_type = _RATELIMITDESCRIPTOR
+_RATELIMITDESCRIPTOR_RATELIMIT_UNIT.containing_type = _RATELIMITDESCRIPTOR_RATELIMIT
+_RATELIMITDESCRIPTOR.fields_by_name['rate_limit'].message_type = _RATELIMITDESCRIPTOR_RATELIMIT
+_RATELIMITDESCRIPTOR.fields_by_name['descriptors'].message_type = _RATELIMITDESCRIPTOR
 DESCRIPTOR.message_types_by_name['SharedConfig'] = _SHAREDCONFIG
 DESCRIPTOR.message_types_by_name['RateLimitConfig'] = _RATELIMITCONFIG
 DESCRIPTOR.message_types_by_name['RateLimitDescriptor'] = _RATELIMITDESCRIPTOR
@@ -277,17 +245,10 @@ _sym_db.RegisterMessage(RateLimitConfig)
 
 RateLimitDescriptor = _reflection.GeneratedProtocolMessageType('RateLimitDescriptor', (_message.Message,), dict(
 
-  Entry = _reflection.GeneratedProtocolMessageType('Entry', (_message.Message,), dict(
-
-    RateLimit = _reflection.GeneratedProtocolMessageType('RateLimit', (_message.Message,), dict(
-      DESCRIPTOR = _RATELIMITDESCRIPTOR_ENTRY_RATELIMIT,
-      __module__ = 'networking.v1alpha3.shared_config_pb2'
-      # @@protoc_insertion_point(class_scope:istio.networking.v1alpha3.RateLimitDescriptor.Entry.RateLimit)
-      ))
-    ,
-    DESCRIPTOR = _RATELIMITDESCRIPTOR_ENTRY,
+  RateLimit = _reflection.GeneratedProtocolMessageType('RateLimit', (_message.Message,), dict(
+    DESCRIPTOR = _RATELIMITDESCRIPTOR_RATELIMIT,
     __module__ = 'networking.v1alpha3.shared_config_pb2'
-    # @@protoc_insertion_point(class_scope:istio.networking.v1alpha3.RateLimitDescriptor.Entry)
+    # @@protoc_insertion_point(class_scope:istio.networking.v1alpha3.RateLimitDescriptor.RateLimit)
     ))
   ,
   DESCRIPTOR = _RATELIMITDESCRIPTOR,
@@ -295,8 +256,7 @@ RateLimitDescriptor = _reflection.GeneratedProtocolMessageType('RateLimitDescrip
   # @@protoc_insertion_point(class_scope:istio.networking.v1alpha3.RateLimitDescriptor)
   ))
 _sym_db.RegisterMessage(RateLimitDescriptor)
-_sym_db.RegisterMessage(RateLimitDescriptor.Entry)
-_sym_db.RegisterMessage(RateLimitDescriptor.Entry.RateLimit)
+_sym_db.RegisterMessage(RateLimitDescriptor.RateLimit)
 
 
 DESCRIPTOR.has_options = True

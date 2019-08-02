@@ -121,6 +121,11 @@ func init() {
 	discoveryCmd.PersistentFlags().IntVar(&serverArgs.MCPMaxMessageSize, "mcpMaxMsgSize", bootstrap.DefaultMCPMaxMsgSize,
 		"Max message size received by MCP's grpc client")
 
+	// RLS client flags
+	discoveryCmd.PersistentFlags().StringSliceVar(&serverArgs.RLSServerAddrs, "rlsServerAddrs", []string{},
+		"comma separated list of RLS server addresses with "+
+			"rls:// (insecure) or rlss:// (secure) schema, e.g. rlss://istio-rls.istio-system.svc:9901")
+
 	// Config Controller options
 	discoveryCmd.PersistentFlags().BoolVar(&serverArgs.Config.DisableInstallCRDs, "disable-install-crds", false,
 		"Disable discovery service from verifying the existence of CRDs at startup and then installing if not detected.  "+

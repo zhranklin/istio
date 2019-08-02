@@ -15,32 +15,28 @@ message RateLimitConfig {
 }
 
 message RateLimitDescriptor {
-    message Entry {
-        message RateLimit {
-            enum Unit {
-                UNKNOWN = 0;
-                SECOND  = 1;
-                MINUTE  = 2;
-                HOUR    = 3;
-                DAY     = 4;
-            }
 
-            uint32 requests_per_unit = 1;
-            Unit unit = 2;
+    message RateLimit {
+        enum Unit {
+            UNKNOWN = 0;
+            SECOND  = 1;
+            MINUTE  = 2;
+            HOUR    = 3;
+            DAY     = 4;
         }
-        // Descriptor key.
-        string key = 1;
 
-        // Descriptor value.
-        string value = 2;
-
-        // Rate Limiter Configuration
-        RateLimit rate_limit = 3;
-
-        // Optional Rate Limit Descriptor
-        repeated RateLimitDescriptor descriptors = 4;
+        uint32 requests_per_unit = 1;
+        Unit unit = 2;
     }
+    // Descriptor key.
+    string key = 1;
 
-    // Descriptor entries.
-    repeated Entry entries = 1;
+    // Descriptor value.
+    string value = 2;
+
+    // Rate Limiter Configuration
+    RateLimit rate_limit = 3;
+
+    // Optional Rate Limit Descriptor
+    repeated RateLimitDescriptor descriptors = 4;
 }

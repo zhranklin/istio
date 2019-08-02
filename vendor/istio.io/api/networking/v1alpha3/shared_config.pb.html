@@ -2,7 +2,7 @@
 title: istio.networking.v1alpha3
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 6
+number_of_entries: 5
 ---
 <h2 id="RateLimitConfig">RateLimitConfig</h2>
 <section>
@@ -41,29 +41,7 @@ number_of_entries: 6
 </tr>
 </thead>
 <tbody>
-<tr id="RateLimitDescriptor-entries">
-<td><code>entries</code></td>
-<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-Entry">RateLimitDescriptor.Entry[]</a></code></td>
-<td>
-<p>Descriptor entries.</p>
-
-</td>
-</tr>
-</tbody>
-</table>
-</section>
-<h2 id="RateLimitDescriptor-Entry">RateLimitDescriptor.Entry</h2>
-<section>
-<table class="message-fields">
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr id="RateLimitDescriptor-Entry-key">
+<tr id="RateLimitDescriptor-key">
 <td><code>key</code></td>
 <td><code>string</code></td>
 <td>
@@ -71,7 +49,7 @@ number_of_entries: 6
 
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-value">
+<tr id="RateLimitDescriptor-value">
 <td><code>value</code></td>
 <td><code>string</code></td>
 <td>
@@ -79,15 +57,15 @@ number_of_entries: 6
 
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-rate_limit">
+<tr id="RateLimitDescriptor-rate_limit">
 <td><code>rateLimit</code></td>
-<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-Entry-RateLimit">RateLimitDescriptor.Entry.RateLimit</a></code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-RateLimit">RateLimitDescriptor.RateLimit</a></code></td>
 <td>
 <p>Rate Limiter Configuration</p>
 
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-descriptors">
+<tr id="RateLimitDescriptor-descriptors">
 <td><code>descriptors</code></td>
 <td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor">RateLimitDescriptor[]</a></code></td>
 <td>
@@ -98,7 +76,7 @@ number_of_entries: 6
 </tbody>
 </table>
 </section>
-<h2 id="RateLimitDescriptor-Entry-RateLimit">RateLimitDescriptor.Entry.RateLimit</h2>
+<h2 id="RateLimitDescriptor-RateLimit">RateLimitDescriptor.RateLimit</h2>
 <section>
 <table class="message-fields">
 <thead>
@@ -109,22 +87,22 @@ number_of_entries: 6
 </tr>
 </thead>
 <tbody>
-<tr id="RateLimitDescriptor-Entry-RateLimit-requests_per_unit">
+<tr id="RateLimitDescriptor-RateLimit-requests_per_unit">
 <td><code>requestsPerUnit</code></td>
 <td><code>uint32</code></td>
 <td>
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-RateLimit-unit">
+<tr id="RateLimitDescriptor-RateLimit-unit">
 <td><code>unit</code></td>
-<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-Entry-RateLimit-Unit">RateLimitDescriptor.Entry.RateLimit.Unit</a></code></td>
+<td><code><a href="https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html#RateLimitDescriptor-RateLimit-Unit">RateLimitDescriptor.RateLimit.Unit</a></code></td>
 <td>
 </td>
 </tr>
 </tbody>
 </table>
 </section>
-<h2 id="RateLimitDescriptor-Entry-RateLimit-Unit">RateLimitDescriptor.Entry.RateLimit.Unit</h2>
+<h2 id="RateLimitDescriptor-RateLimit-Unit">RateLimitDescriptor.RateLimit.Unit</h2>
 <section>
 <table class="enum-values">
 <thead>
@@ -134,27 +112,27 @@ number_of_entries: 6
 </tr>
 </thead>
 <tbody>
-<tr id="RateLimitDescriptor-Entry-RateLimit-Unit-UNKNOWN">
+<tr id="RateLimitDescriptor-RateLimit-Unit-UNKNOWN">
 <td><code>UNKNOWN</code></td>
 <td>
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-RateLimit-Unit-SECOND">
+<tr id="RateLimitDescriptor-RateLimit-Unit-SECOND">
 <td><code>SECOND</code></td>
 <td>
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-RateLimit-Unit-MINUTE">
+<tr id="RateLimitDescriptor-RateLimit-Unit-MINUTE">
 <td><code>MINUTE</code></td>
 <td>
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-RateLimit-Unit-HOUR">
+<tr id="RateLimitDescriptor-RateLimit-Unit-HOUR">
 <td><code>HOUR</code></td>
 <td>
 </td>
 </tr>
-<tr id="RateLimitDescriptor-Entry-RateLimit-Unit-DAY">
+<tr id="RateLimitDescriptor-RateLimit-Unit-DAY">
 <td><code>DAY</code></td>
 <td>
 </td>
