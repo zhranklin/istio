@@ -107,6 +107,7 @@ func (r ClientSet) AddRatelimitConfig(config *networking.SharedConfig) error {
 			}
 		}
 	}
+	log.Info("AddRatelimitConfig successfully")
 	return nil
 }
 
@@ -125,6 +126,7 @@ func (r ClientSet) UpdateRatelimitConfig(config *networking.SharedConfig) error 
 			}
 		}
 	}
+	log.Info("UpdateRatelimitConfig successfully")
 	return nil
 }
 
@@ -143,6 +145,7 @@ func (r ClientSet) DeleteRatelimitConfig(config *networking.SharedConfig) error 
 			}
 		}
 	}
+	log.Info("DeleteRatelimitConfig successfully")
 	return nil
 }
 
