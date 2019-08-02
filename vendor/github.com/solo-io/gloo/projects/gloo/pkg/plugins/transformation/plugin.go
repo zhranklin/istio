@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	FilterName  = "io.solo.transformation"
+	FilterName  = "com.netease.transformation"
 	pluginStage = plugins.PostInAuth
 )
 
