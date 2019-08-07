@@ -68,17 +68,19 @@ func httpTransformationToGlooTransformation(httpTransformation *networking.HttpT
 				Text: httpTransformation.New.Path.Value,
 			}
 		}
-		switch httpTransformation.New.Body.Type {
-		case networking.Body_Body:
-			ret.BodyTransformation = &transformapi.TransformationTemplate_Body{
-				Body: &transformapi.InjaTemplate{
-					Text: httpTransformation.New.Body.Text,
-				},
+		if httpTransformation.New.Body != nil {
+			switch httpTransformation.New.Body.Type {
+			case networking.Body_Body:
+				ret.BodyTransformation = &transformapi.TransformationTemplate_Body{
+					Body: &transformapi.InjaTemplate{
+						Text: httpTransformation.New.Body.Text,
+					},
+				}
+			case networking.Body_MergeExtractorsToBody:
+				ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
+			case networking.Body_Passthrough:
+				ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
 			}
-		case networking.Body_MergeExtractorsToBody:
-			ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
-		case networking.Body_Passthrough:
-			ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
 		}
 	}
 	return ret

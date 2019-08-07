@@ -46,6 +46,7 @@ import (
 	"istio.io/istio/pkg/features/pilot"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/proto"
+	pl "yun.netease.com/go-control-plane/api/plugin"
 )
 
 const (
@@ -377,9 +378,6 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 	}
 
 	filters := []*http_conn.HttpFilter{
-		{Name: xdsutil.CORS},
-		{Name: xdsutil.Fault},
-		{Name: transformation.FilterName},
 		{Name: xdsutil.Router},
 	}
 	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
@@ -1497,6 +1495,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		&http_conn.HttpFilter{Name: xdsutil.CORS},
 		&http_conn.HttpFilter{Name: xdsutil.Fault},
 		&http_conn.HttpFilter{Name: transformation.FilterName},
+		&http_conn.HttpFilter{Name: pl.IpRestriction},
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 
