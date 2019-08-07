@@ -35,7 +35,7 @@ func IpRestriction2Message(ipRestriction *networking.IpRestriction) proto.Messag
 		Type: plugin.ListType(ipRestriction.Type),
 		List: make([]*plugin.IpEntry, len(ipRestriction.Ip)),
 	}
-	for i, ip := range in.IpRestriction.Ip {
+	for i, ip := range ipRestriction.Ip {
 		IpBw.List[i] = &plugin.IpEntry{
 			Ip: ip,
 			Type: func() plugin.IpType {
