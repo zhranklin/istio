@@ -568,6 +568,11 @@
 			"path": "google.golang.org/grpc/internal/syscall",
 			"revision": "495133b619416f2b99dacb9b23d4da53a0f54d10",
 			"revisionTime": "2019-03-19T20:26:46Z"
+		},
+		{
+			"checksumSHA1": "6Vl8EenvJnPBeATKHM8l4+bazBw=",
+			"path": "yun.netease.com/go-control-plane/api/plugin",
+			"revision": ""
 		}
 	],
 	"rootPath": "istio.io/istio"

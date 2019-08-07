@@ -17,7 +17,6 @@ syntax = "proto3";
 import "google/protobuf/duration.proto";
 import "google/protobuf/wrappers.proto";
 
-
 // $title: Virtual Service
 // $description: Configuration affecting label/content routing, sni routing, etc.
 // $location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
@@ -198,6 +197,9 @@ message VirtualService {
 
     // rate limiter config for virtual service
     repeated RateLimit rate_limits = 7;
+
+    // black/white ip list
+    IpRestriction ip_restriction = 8;
 }
 
 // Destination indicates the network addressable service to which the
@@ -445,6 +447,9 @@ message HTTPRoute {
 
     // rate limiter config for http route
     repeated RateLimit rate_limits = 21;
+
+    // black/white ip list
+    IpRestriction ip_restriction = 22;
 }
 
 // https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#route-ratelimit
@@ -1446,4 +1451,13 @@ message PortSelector {
 // Percent specifies a percentage in the range of [0.0, 100.0].
 message Percent {
     double value = 1;
+}
+
+message IpRestriction {
+    enum RuleType {
+        BLACK = 0;
+        WHITE = 1;
+    }
+    RuleType type = 1;
+    repeated string ip = 2;
 }

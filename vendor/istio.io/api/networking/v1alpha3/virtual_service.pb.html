@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 39
+number_of_entries: 41
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -1201,6 +1201,14 @@ field instead.</p>
 
 </td>
 </tr>
+<tr id="HTTPRoute-ip_restriction">
+<td><code>ipRestriction</code></td>
+<td><code><a href="#IpRestriction">IpRestriction</a></code></td>
+<td>
+<p>black/white ip list</p>
+
+</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1649,6 +1657,55 @@ to the caller</p>
 <td>
 <p>Inject the elements from the original request into the new request</p>
 
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="IpRestriction">IpRestriction</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="IpRestriction-type">
+<td><code>type</code></td>
+<td><code><a href="#IpRestriction-RuleType">IpRestriction.RuleType</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="IpRestriction-ip">
+<td><code>ip</code></td>
+<td><code>string[]</code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="IpRestriction-RuleType">IpRestriction.RuleType</h2>
+<section>
+<table class="enum-values">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="IpRestriction-RuleType-BLACK">
+<td><code>BLACK</code></td>
+<td>
+</td>
+</tr>
+<tr id="IpRestriction-RuleType-WHITE">
+<td><code>WHITE</code></td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -2516,6 +2573,14 @@ defines an export to all namespaces.</p>
 <td><code><a href="#RateLimit">RateLimit[]</a></code></td>
 <td>
 <p>rate limiter config for virtual service</p>
+
+</td>
+</tr>
+<tr id="VirtualService-ip_restriction">
+<td><code>ipRestriction</code></td>
+<td><code><a href="#IpRestriction">IpRestriction</a></code></td>
+<td>
+<p>black/white ip list</p>
 
 </td>
 </tr>

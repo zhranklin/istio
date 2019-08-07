@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation"
+	"istio.io/istio/pilot/pkg/networking/plugin/extension"
 	"sort"
 	"strconv"
 	"strings"
@@ -492,28 +493,13 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		}
 	}
 
-	if in.RequestTransform != nil || in.ResponseTransform != nil {
-		ret := &transformapi.RouteTransformations{}
-		if reqTransformation := in.RequestTransform; reqTransformation != nil {
-			glooreq := httpTransformationToGlooTransformation(reqTransformation)
-			ret.RequestTransformation = &transformapi.Transformation{
-				TransformationType: &transformapi.Transformation_TransformationTemplate{
-					TransformationTemplate: glooreq,
-				},
+	for _, plugin := range extension.GetEnablePlugin() {
+		if message, ok := plugin.BuildRouteLevelPlugin(in); ok {
+			if util.IsXDSMarshalingToAnyEnabled(node) {
+				out.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(message)
+			} else {
+				out.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(message)
 			}
-		}
-		if respTransformation := in.ResponseTransform; respTransformation != nil {
-			glooresp := httpTransformationToGlooTransformation(respTransformation)
-			ret.ResponseTransformation = &transformapi.Transformation{
-				TransformationType: &transformapi.Transformation_TransformationTemplate{
-					TransformationTemplate: glooresp,
-				},
-			}
-		}
-		if util.IsXDSMarshalingToAnyEnabled(node) {
-			out.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(ret)
-		} else {
-			out.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(ret)
 		}
 	}
 	return out
