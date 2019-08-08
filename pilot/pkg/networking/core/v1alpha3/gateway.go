@@ -16,7 +16,6 @@ package v1alpha3
 
 import (
 	"fmt"
-	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 	"istio.io/istio/pilot/pkg/networking/plugin/extension"
 	"strconv"
 	"strings"
@@ -264,9 +263,9 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 					for _, plugin := range extension.GetEnablePlugin() {
 						if message, ok := plugin.BuildHostLevelPlugin(virtualService.Spec.(*networking.VirtualService)); ok {
 							if util.IsXDSMarshalingToAnyEnabled(node) {
-								vHost.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(message)
+								vHost.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
 							} else {
-								vHost.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(message)
+								vHost.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
 							}
 						}
 					}
@@ -282,9 +281,9 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 					for _, plugin := range extension.GetEnablePlugin() {
 						if message, ok := plugin.BuildHostLevelPlugin(virtualService.Spec.(*networking.VirtualService)); ok {
 							if util.IsXDSMarshalingToAnyEnabled(node) {
-								newVHost.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(message)
+								newVHost.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
 							} else {
-								newVHost.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(message)
+								newVHost.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
 							}
 						}
 					}

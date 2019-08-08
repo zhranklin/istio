@@ -16,7 +16,6 @@ package route
 
 import (
 	"fmt"
-	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation"
 	"istio.io/istio/pilot/pkg/networking/plugin/extension"
 	"sort"
@@ -496,9 +495,9 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 	for _, plugin := range extension.GetEnablePlugin() {
 		if message, ok := plugin.BuildRouteLevelPlugin(in); ok {
 			if util.IsXDSMarshalingToAnyEnabled(node) {
-				out.TypedPerFilterConfig[transformation.FilterName] = util.MessageToAny(message)
+				out.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
 			} else {
-				out.PerFilterConfig[transformation.FilterName] = util.MessageToStruct(message)
+				out.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
 			}
 		}
 	}
