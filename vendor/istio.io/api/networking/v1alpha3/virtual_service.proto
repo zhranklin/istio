@@ -952,6 +952,8 @@ message HTTPMatchRequest {
     // at the top of the VirtualService (if any) are overridden. The gateway match is
     // independent of sourceLabels.
     repeated string gateways = 8;
+
+    map<string, StringMatch> query_params = 9;
 }
 
 // Each routing rule is associated with one or more service versions (see
