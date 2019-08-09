@@ -1496,6 +1496,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		&http_conn.HttpFilter{Name: xdsutil.Fault},
 		&http_conn.HttpFilter{Name: transformation.FilterName},
 		&http_conn.HttpFilter{Name: pl.IpRestriction},
+		&http_conn.HttpFilter{Name: xdsutil.RateLimit},
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 
