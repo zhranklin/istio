@@ -1493,15 +1493,6 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
-	filters = append(filters,
-		&http_conn.HttpFilter{Name: xdsutil.CORS},
-		&http_conn.HttpFilter{Name: xdsutil.Fault},
-		&http_conn.HttpFilter{Name: transformation.FilterName},
-		&http_conn.HttpFilter{Name: pl.IpRestriction},
-		//&http_conn.HttpFilter{Name: xdsutil.HTTPRateLimit},
-		&http_conn.HttpFilter{Name: xdsutil.Router},
-	)
-
 	// for rate limit service config
 	rateLimiterFiler := http_conn.HttpFilter{Name: xdsutil.HTTPRateLimit}
 	rateLimitService := v2.RateLimitServiceConfig{
@@ -1518,7 +1509,15 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		RateLimitService: &rateLimitService,
 	}
 	rateLimiterFiler.ConfigType = &http_conn.HttpFilter_Config{Config: util.MessageToStruct(&rateLimitServiceConfig)}
-	filters = append(filters, &rateLimiterFiler)
+
+	filters = append(filters,
+		&http_conn.HttpFilter{Name: xdsutil.CORS},
+		&http_conn.HttpFilter{Name: xdsutil.Fault},
+		&http_conn.HttpFilter{Name: transformation.FilterName},
+		&http_conn.HttpFilter{Name: pl.IpRestriction},
+		&rateLimiterFiler,
+		&http_conn.HttpFilter{Name: xdsutil.Router},
+	)
 
 	if httpOpts.connectionManager == nil {
 		httpOpts.connectionManager = &http_conn.HttpConnectionManager{}
