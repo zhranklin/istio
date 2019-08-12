@@ -16,7 +16,6 @@ package route
 
 import (
 	"fmt"
-	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/utils/transformation"
 	"istio.io/istio/pilot/pkg/networking/plugin/extension"
 	"sort"
 	"strconv"
@@ -30,7 +29,6 @@ import (
 	xdstype "github.com/envoyproxy/go-control-plane/envoy/type"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
-	transformapi "github.com/solo-io/gloo/projects/gloo/pkg/api/v1/plugins/transformation"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/route/retry"
@@ -508,58 +506,6 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 	return out
 }
 
-func httpTransformationToGlooTransformation(httpTransformation *networking.HttpTransformation) *transformapi.TransformationTemplate {
-	ret := &transformapi.TransformationTemplate{}
-	// build Extractors
-	var err error
-	if httpTransformation.Orignal != nil {
-		ret.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
-			Headers: httpTransformation.Orignal.Headers,
-			Path:    httpTransformation.Orignal.Path,
-		})
-	} else {
-		ret.Extractors, err = rest.CreateRequestExtractors(nil, nil)
-	}
-	if err != nil {
-		log.Error(err.Error())
-	}
-
-	// build template
-	if httpTransformation.New != nil {
-		ret.Headers = generateNewHeaders(httpTransformation.New.Headers)
-		if httpTransformation.New.Path != nil {
-			ret.Headers[":path"] = &transformapi.InjaTemplate{
-				Text: httpTransformation.New.Path.Value,
-			}
-		}
-		switch httpTransformation.New.Body.Type {
-		case networking.Body_Body:
-			ret.BodyTransformation = &transformapi.TransformationTemplate_Body{
-				Body: &transformapi.InjaTemplate{
-					Text: httpTransformation.New.Body.Text,
-				},
-			}
-		case networking.Body_MergeExtractorsToBody:
-			ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
-		case networking.Body_Passthrough:
-			ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
-		}
-	}
-	return ret
-}
-
-func generateNewHeaders(headers map[string]string) map[string]*transformapi.InjaTemplate {
-	ret := make(map[string]*transformapi.InjaTemplate, len(headers))
-	if headers != nil {
-		for k, v := range headers {
-			ret[k] = &transformapi.InjaTemplate{
-				Text: v,
-			}
-		}
-	}
-	return ret
-}
-
 // SortHeaderValueOption type and the functions below (Len, Less and Swap) are for sort.Stable for type HeaderValueOption
 type SortHeaderValueOption []*core.HeaderValueOption
 
@@ -641,6 +587,27 @@ func translateRouteMatch(in *networking.HTTPMatchRequest) route.RouteMatch {
 	if in.Scheme != nil {
 		matcher := translateHeaderMatch(HeaderScheme, in.Scheme)
 		out.Headers = append(out.Headers, &matcher)
+	}
+
+	for name, stringMatch := range in.QueryParams {
+		matcher := translateQueryParamMatch(name, stringMatch)
+		out.QueryParameters = append(out.QueryParameters, &matcher)
+	}
+
+	return out
+}
+
+func translateQueryParamMatch(name string, in *networking.StringMatch) route.QueryParameterMatcher {
+	out := route.QueryParameterMatcher{
+		Name: name,
+	}
+
+	switch m := in.MatchType.(type) {
+	case *networking.StringMatch_Exact:
+		out.Value = m.Exact
+	case *networking.StringMatch_Regex:
+		out.Value = m.Regex
+		out.Regex = &types.BoolValue{Value: true}
 	}
 
 	return out
