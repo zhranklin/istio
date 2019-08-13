@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/types"
 	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
-	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	"reflect"
 	"sort"
 	"strconv"
@@ -297,7 +296,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 			ProxyInstances:   proxyInstances,
 			Push:             push,
 		}
-		if err := buildCompleteFilterChain(pluginParams, mutable, opts); err != nil {
+		if err := buildCompleteFilterChain(pluginParams, mutable, opts, false); err != nil {
 			log.Warna("buildSidecarListeners ", err.Error())
 		} else {
 			listeners = append(listeners, l)
@@ -310,8 +309,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 
 func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
 	env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance) *xdsapi.Listener {
-
-	//Step1: argments init
+	log.Infof("default listener build start")
 	httpOpts := &httpListenerOpts{
 		useRemoteAddress: false,
 		direction:        http_conn.EGRESS,
@@ -329,43 +327,7 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		bindToPort:      true,
 		skipUserFilters: true,
 	}
-	pluginParams := &plugin.InputParams{
-		Push:             env.PushContext,
-		ListenerProtocol: plugin.ListenerProtocolTCP,
-		ListenerCategory: networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND,
-		Env:              env,
-		Node:             node,
-		ProxyInstances:   proxyInstances,
-		Bind:             "",
-		Port: &model.Port{
-			Name:     "http_entry",
-			Port:     dstPort,
-			Protocol: model.Protocol("http"),
-		},
-		Service: &model.Service{
-			Hostname: model.Hostname("default"),
-		},
-	}
 	l := buildListener(opts)
-	mutable := &plugin.MutableObjects{
-		Listener:     l,
-		FilterChains: make([]plugin.FilterChain, len(l.FilterChains)),
-	}
-
-	//Step2: add mixer filter
-	for _, v := range configgen.Plugins {
-		if m, ok := v.(mixer.Mixerplugin); ok {
-			m.OnOutboundListener(pluginParams, mutable)
-		}
-	}
-
-	//Step3: build listener
-	err := buildCompleteFilterChain(pluginParams, mutable, opts)
-	if err != nil {
-		log.Errorf("error:%v", err)
-	}
-
-	//Step4: modify rds
 	rds := &http_conn.HttpConnectionManager_Rds{
 		Rds: &http_conn.Rds{
 			ConfigSource: core.ConfigSource{
@@ -376,8 +338,9 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 			RouteConfigName: httpOpts.rds,
 		},
 	}
-
 	filters := []*http_conn.HttpFilter{
+		{Name: xdsutil.CORS},
+		{Name: xdsutil.Fault},
 		{Name: xdsutil.Router},
 	}
 	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
@@ -386,24 +349,18 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 			Prefix: value,
 		}
 	}
-	for _, filterChains := range mutable.Listener.FilterChains {
-		for _, filter := range filterChains.Filters {
-			if filter.Name == xdsutil.HTTPConnectionManager {
-				filter = listener.Filter{
-					Name: xdsutil.HTTPConnectionManager,
-					ConfigType: &listener.Filter_TypedConfig{
-						TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
-							CodecType:      http_conn.AUTO,
-							StatPrefix:     "http_default",
-							RouteSpecifier: rds,
-							HttpFilters:    filters,
-							UrlTransformer: urltransformers,
-						}),
-					},
-				}
-			}
-		}
-	}
+	l.FilterChains[0].Filters = append(l.FilterChains[0].Filters, listener.Filter{
+		Name: xdsutil.HTTPConnectionManager,
+		ConfigType: &listener.Filter_TypedConfig{
+			TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
+				CodecType:      http_conn.AUTO,
+				StatPrefix:     "http_default",
+				RouteSpecifier: rds,
+				HttpFilters:    filters,
+				UrlTransformer: urltransformers,
+			}),
+		},
+	})
 	return l
 }
 
@@ -668,7 +625,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarInboundListenerForPortOrUDS(li
 		}
 	}
 	// Filters are serialized one time into an opaque struct once we have the complete list.
-	if err := buildCompleteFilterChain(pluginParams, mutable, listenerOpts); err != nil {
+	if err := buildCompleteFilterChain(pluginParams, mutable, listenerOpts, false); err != nil {
 		log.Warna("buildSidecarInboundListeners ", err.Error())
 		return nil
 	}
@@ -1204,7 +1161,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(l
 	}
 
 	// Filters are serialized one time into an opaque struct once we have the complete list.
-	if err := buildCompleteFilterChain(pluginParams, mutable, listenerOpts); err != nil {
+	if err := buildCompleteFilterChain(pluginParams, mutable, listenerOpts, false); err != nil {
 		log.Warna("buildSidecarOutboundListeners: ", err.Error())
 		return
 	}
@@ -1424,7 +1381,7 @@ func buildSidecarInboundMgmtListeners(node *model.Proxy, env *model.Environment,
 				Port:             mPort,
 			}
 			// TODO: should we call plugins for the admin port listeners too? We do everywhere else we construct listeners.
-			if err := buildCompleteFilterChain(pluginParams, mutable, listenerOpts); err != nil {
+			if err := buildCompleteFilterChain(pluginParams, mutable, listenerOpts, false); err != nil {
 				log.Warna("buildSidecarInboundMgmtListeners ", err.Error())
 			} else {
 				listeners = append(listeners, l)
@@ -1482,7 +1439,7 @@ type buildListenerOpts struct {
 }
 
 func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpOpts *httpListenerOpts,
-	httpFilters []*http_conn.HttpFilter) *http_conn.HttpConnectionManager {
+	httpFilters []*http_conn.HttpFilter, isGateway bool) *http_conn.HttpConnectionManager {
 
 	filters := make([]*http_conn.HttpFilter, len(httpFilters))
 	copy(filters, httpFilters)
@@ -1491,11 +1448,16 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
+	if isGateway {
+		filters = append(filters,
+			&http_conn.HttpFilter{Name: transformation.FilterName},
+			&http_conn.HttpFilter{Name: pl.IpRestriction},
+		)
+	}
+
 	filters = append(filters,
 		&http_conn.HttpFilter{Name: xdsutil.CORS},
 		&http_conn.HttpFilter{Name: xdsutil.Fault},
-		&http_conn.HttpFilter{Name: transformation.FilterName},
-		&http_conn.HttpFilter{Name: pl.IpRestriction},
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 
@@ -1719,7 +1681,8 @@ func appendListenerFallthroughRoute(l *xdsapi.Listener, opts *buildListenerOpts,
 // TODO: given how tightly tied listener.FilterChains, opts.filterChainOpts, and mutable.FilterChains are to eachother
 // we should encapsulate them some way to ensure they remain consistent (mainly that in each an index refers to the same
 // chain)
-func buildCompleteFilterChain(pluginParams *plugin.InputParams, mutable *plugin.MutableObjects, opts buildListenerOpts) error {
+func buildCompleteFilterChain(pluginParams *plugin.InputParams, mutable *plugin.MutableObjects, opts buildListenerOpts,
+	isGateway bool) error {
 	if len(opts.filterChainOpts) == 0 {
 		return fmt.Errorf("must have more than 0 chains in listener: %#v", mutable.Listener)
 	}
@@ -1757,7 +1720,7 @@ func buildCompleteFilterChain(pluginParams *plugin.InputParams, mutable *plugin.
 			}
 			if opt.httpOpts != nil {
 				opt.httpOpts.statPrefix = mutable.Listener.Name
-				httpConnectionManagers[i] = buildHTTPConnectionManager(pluginParams.Node, opts.env, opt.httpOpts, chain.HTTP)
+				httpConnectionManagers[i] = buildHTTPConnectionManager(pluginParams.Node, opts.env, opt.httpOpts, chain.HTTP, isGateway)
 				filter := listener.Filter{
 					Name: xdsutil.HTTPConnectionManager,
 				}

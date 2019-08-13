@@ -185,7 +185,7 @@ func buildSidecarVirtualHostsForVirtualService(
 	meshGateway := map[string]bool{model.IstioMeshGateway: true}
 	out := make([]VirtualHostWrapper, 0, len(serviceByPort))
 	for port, portServices := range serviceByPort {
-		routes, err := BuildHTTPRoutesForVirtualService(node, push, virtualService, serviceRegistry, listenPort, proxyLabels, meshGateway)
+		routes, err := BuildHTTPRoutesForVirtualService(node, push, virtualService, serviceRegistry, listenPort, proxyLabels, meshGateway, false)
 		if err != nil || len(routes) == 0 {
 			continue
 		}
@@ -242,7 +242,8 @@ func BuildHTTPRoutesForVirtualService(
 	serviceRegistry map[model.Hostname]*model.Service,
 	listenPort int,
 	proxyLabels model.LabelsCollection,
-	gatewayNames map[string]bool) ([]route.Route, error) {
+	gatewayNames map[string]bool,
+	isGateway bool) ([]route.Route, error) {
 
 	vs, ok := virtualService.Spec.(*networking.VirtualService)
 	if !ok { // should never happen
@@ -253,13 +254,13 @@ func BuildHTTPRoutesForVirtualService(
 allroutes:
 	for _, http := range vs.Http {
 		if len(http.Match) == 0 {
-			if r := translateRoute(push, node, http, nil, listenPort, virtualService, serviceRegistry, proxyLabels, gatewayNames); r != nil {
+			if r := translateRoute(push, node, http, nil, listenPort, virtualService, serviceRegistry, proxyLabels, gatewayNames, isGateway); r != nil {
 				out = append(out, *r)
 			}
 			break allroutes // we have a rule with catch all match prefix: /. Other rules are of no use
 		} else {
 			for _, match := range http.Match {
-				if r := translateRoute(push, node, http, match, listenPort, virtualService, serviceRegistry, proxyLabels, gatewayNames); r != nil {
+				if r := translateRoute(push, node, http, match, listenPort, virtualService, serviceRegistry, proxyLabels, gatewayNames, isGateway); r != nil {
 					out = append(out, *r)
 					rType, _ := getEnvoyRouteTypeAndVal(r)
 					if rType == envoyCatchAll {
@@ -304,7 +305,8 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 	virtualService model.Config,
 	serviceRegistry map[model.Hostname]*model.Service,
 	proxyLabels model.LabelsCollection,
-	gatewayNames map[string]bool) *route.Route {
+	gatewayNames map[string]bool,
+	isGateway bool) *route.Route {
 
 	// When building routes, its okay if the target cluster cannot be
 	// resolved Traffic to such clusters will blackhole.
@@ -492,12 +494,14 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 		}
 	}
 
-	for _, plugin := range extension.GetEnablePlugin() {
-		if message, ok := plugin.BuildRouteLevelPlugin(in); ok {
-			if util.IsXDSMarshalingToAnyEnabled(node) {
-				out.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
-			} else {
-				out.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
+	if isGateway {
+		for _, plugin := range extension.GetEnablePlugin() {
+			if message, ok := plugin.BuildRouteLevelPlugin(in); ok {
+				if util.IsXDSMarshalingToAnyEnabled(node) {
+					out.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
+				} else {
+					out.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
+				}
 			}
 		}
 	}
