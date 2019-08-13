@@ -366,7 +366,8 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 			Cors:        translateCORSPolicy(in.CorsPolicy, node),
 			RetryPolicy: retry.ConvertPolicy(in.Retries),
 			// translate rate limiter config
-			RateLimits: TranslateRateLimits(in.RateLimits),
+			RateLimits:          TranslateRateLimits(in.RateLimits),
+			IncludeVhRateLimits: &types.BoolValue{Value: in.IncludeVhRateLimits},
 		}
 
 		if in.Timeout != nil {

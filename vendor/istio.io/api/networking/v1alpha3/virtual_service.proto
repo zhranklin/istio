@@ -450,6 +450,9 @@ message HTTPRoute {
 
     // black/white ip list
     IpRestriction ip_restriction = 22;
+
+    // include virtual host rate limit ge
+    bool IncludeVhRateLimits = 23;
 }
 
 // https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#route-ratelimit
