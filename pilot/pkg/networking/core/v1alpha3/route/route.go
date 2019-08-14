@@ -339,12 +339,12 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 				},
 			}}
 	} else if ret := in.Return; ret != nil {
-		var a *route.DirectResponseAction
+		a := &route.DirectResponseAction{
+			Status: uint32(ret.Code),
+			Body:   &core.DataSource{},
+		}
 		out.Action = &route.Route_DirectResponse{
-			DirectResponse: &route.DirectResponseAction{
-				Status: uint32(ret.Code),
-				Body:   &core.DataSource{},
-			},
+			DirectResponse: a,
 		}
 		if ret.Body != nil {
 			if ret.Body.Filename != "" {
