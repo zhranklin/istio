@@ -27,7 +27,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 
 	authn "istio.io/api/authentication/v1alpha1"
 	meshconfig "istio.io/api/mesh/v1alpha1"
@@ -1841,8 +1841,8 @@ func validateHTTPRoute(http *networking.HTTPRoute) (errs error) {
 		if http.WebsocketUpgrade {
 			errs = appendErrors(errs, errors.New("WebSocket upgrade is not allowed on redirect rules")) // nolint: golint
 		}
-	} else if len(http.Route) == 0 {
-		errs = appendErrors(errs, errors.New("HTTP route or redirect is required"))
+	} else if len(http.Route) == 0 && http.Return == nil {
+		errs = appendErrors(errs, errors.New("HTTP route, redirect or return is required"))
 	}
 
 	// deprecated
