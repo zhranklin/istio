@@ -187,9 +187,7 @@ type PilotArgs struct {
 
 	PortMappingManager string
 
-	NsfUrlPrefix string
-
-	NsfHostPrefix  string
+	NsfUrlPrefix   string
 	NsfHostSuffix  string
 	RLSServerAddrs []string
 }
@@ -1029,7 +1027,6 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 
 	vs := strings.Split(args.NsfUrlPrefix, ",")
 	environment.NsfUrlPrefix = vs
-	environment.NsfHostPrefix = args.NsfHostPrefix
 	environment.NsfHostSuffix = args.NsfHostSuffix
 
 	// Set up discovery service

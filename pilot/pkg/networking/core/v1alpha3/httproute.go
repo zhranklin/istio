@@ -180,15 +180,16 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 					Domains: []string{host, fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port)},
 					Routes:  virtualHostWrapper.Routes,
 				}
-				if (push.Env.NsfHostPrefix != "" || push.Env.NsfHostSuffix != "") && isK8SSvcHost(host) {
+				if push.Env.NsfHostSuffix != "" && isK8SSvcHost(host) {
 					serviceName := strings.Split(host, ".")[0]
-					n := fmt.Sprintf("%s:%d", push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
+					namespace := strings.Split(host, ".")[1]
+					n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
 					if _, ok := uniques[n]; ok {
 						push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s, when add prefix and suffix", name))
 						log.Debugf("Dropping duplicate route entry %v.", n)
 						continue
 					}
-					vh.Domains = append(vh.Domains, push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix)
+					vh.Domains = append(vh.Domains, namespace+"."+serviceName+push.Env.NsfHostSuffix)
 				}
 				virtualHosts = append(virtualHosts, vh)
 			} else {
@@ -206,15 +207,16 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 					Domains: generateVirtualHostDomains(svc, virtualHostWrapper.Port, node),
 					Routes:  virtualHostWrapper.Routes,
 				}
-				if (push.Env.NsfHostPrefix != "" || push.Env.NsfHostSuffix != "") && isK8SSvcHost(string(svc.Hostname)) {
+				if push.Env.NsfHostSuffix != "" && isK8SSvcHost(string(svc.Hostname)) {
 					serviceName := strings.Split(string(svc.Hostname), ".")[0]
-					n := fmt.Sprintf("%s:%d", push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
+					namespace := strings.Split(string(svc.Hostname), ".")[1]
+					n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
 					if _, ok := uniques[n]; ok {
 						push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s, when add prefix and suffix", name))
 						log.Debugf("Dropping duplicate route entry %v.", n)
 						continue
 					}
-					vh.Domains = append(vh.Domains, push.Env.NsfHostPrefix+serviceName+push.Env.NsfHostSuffix)
+					vh.Domains = append(vh.Domains, namespace+"."+serviceName+push.Env.NsfHostSuffix)
 				}
 				virtualHosts = append(virtualHosts, vh)
 			} else {

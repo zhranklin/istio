@@ -64,7 +64,6 @@ type Environment struct {
 
 	NsfUrlPrefix []string
 
-	NsfHostPrefix string
 	NsfHostSuffix string
 }
 
