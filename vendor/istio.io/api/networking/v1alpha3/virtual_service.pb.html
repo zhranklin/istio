@@ -4,7 +4,7 @@ description: Configuration affecting label/content routing, sni routing, etc.
 location: https://istio.io/docs/reference/config/networking/v1alpha3/virtual-service.html
 layout: protoc-gen-docs
 generator: protoc-gen-docs
-number_of_entries: 41
+number_of_entries: 47
 ---
 <p>Configuration affecting traffic routing. Here are a few terms useful to define
 in the context of traffic routing.</p>
@@ -454,6 +454,41 @@ DestinationRule.</p>
 exposes only a single port it is not required to explicitly select the
 port.</p>
 
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Extraction">Extraction</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Extraction-header">
+<td><code>header</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="Extraction-regex">
+<td><code>regex</code></td>
+<td><code>string</code></td>
+<td>
+<p>what information to extract. if extraction fails the result is
+an empty value.</p>
+
+</td>
+</tr>
+<tr id="Extraction-subgroup">
+<td><code>subgroup</code></td>
+<td><code>uint32</code></td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -1354,6 +1389,9 @@ field instead.</p>
 </tbody>
 </table>
 </section>
+<h2 id="HeaderBodyTransform">HeaderBodyTransform</h2>
+<section>
+</section>
 <h2 id="HeaderMatcher">HeaderMatcher</h2>
 <section>
 <p>.. attention::</p>
@@ -1643,8 +1681,8 @@ to the caller</p>
 </tr>
 </thead>
 <tbody>
-<tr id="HttpTransformation-orignal">
-<td><code>orignal</code></td>
+<tr id="HttpTransformation-original">
+<td><code>original</code></td>
 <td><code><a href="#Parameters">Parameters</a></code></td>
 <td>
 <p>Extract the elements in the original request</p>
@@ -1657,6 +1695,36 @@ to the caller</p>
 <td>
 <p>Inject the elements from the original request into the new request</p>
 
+</td>
+</tr>
+<tr id="HttpTransformation-advanced">
+<td><code>advanced</code></td>
+<td><code><a href="#TransformationTemplate">TransformationTemplate</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="InjaTemplate">InjaTemplate</h2>
+<section>
+<p>custom functions:
+header<em>value(name) -&gt; from the original headers
+extracted</em>value(name, index) -&gt; from the extracted values</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="InjaTemplate-text">
+<td><code>text</code></td>
+<td><code>string</code></td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -1768,6 +1836,9 @@ match is independent of sourceLabels.</p>
 </tbody>
 </table>
 </section>
+<h2 id="MergeExtractorsToBody">MergeExtractorsToBody</h2>
+<section>
+</section>
 <h2 id="Parameters">Parameters</h2>
 <section>
 <table class="message-fields">
@@ -1815,6 +1886,9 @@ TODO: support form params</p>
 </tr>
 </tbody>
 </table>
+</section>
+<h2 id="Passthrough">Passthrough</h2>
+<section>
 </section>
 <h2 id="Percent">Percent</h2>
 <section>
@@ -2442,6 +2516,58 @@ is matched if any one of the match blocks succeed.</p>
 <td>
 <p>The destination to which the connection should be forwarded to.</p>
 
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="TransformationTemplate">TransformationTemplate</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="TransformationTemplate-advanced_templates">
+<td><code>advancedTemplates</code></td>
+<td><code>bool</code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformationTemplate-extractors">
+<td><code>extractors</code></td>
+<td><code>map&lt;string,&nbsp;<a href="#Extraction">Extraction</a>&gt;</code></td>
+<td>
+<p>Extractors are in the origin request language domain</p>
+
+</td>
+</tr>
+<tr id="TransformationTemplate-headers">
+<td><code>headers</code></td>
+<td><code>map&lt;string,&nbsp;<a href="#InjaTemplate">InjaTemplate</a>&gt;</code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformationTemplate-body" class="oneof oneof-start">
+<td><code>body</code></td>
+<td><code><a href="#InjaTemplate">InjaTemplate (oneof)</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformationTemplate-passthrough" class="oneof">
+<td><code>passthrough</code></td>
+<td><code><a href="#Passthrough">Passthrough (oneof)</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="TransformationTemplate-merge_extractors_to_body" class="oneof">
+<td><code>mergeExtractorsToBody</code></td>
+<td><code><a href="#MergeExtractorsToBody">MergeExtractorsToBody (oneof)</a></code></td>
+<td>
 </td>
 </tr>
 </tbody>

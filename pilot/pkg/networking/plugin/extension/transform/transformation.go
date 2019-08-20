@@ -48,16 +48,28 @@ func httpTransformationToGlooTransformation(httpTransformation *networking.HttpT
 	ret := &transformapi.TransformationTemplate{}
 	// build Extractors
 	var err error
-	if httpTransformation.Orignal != nil {
+	if httpTransformation.Original != nil {
 		ret.Extractors, err = rest.CreateRequestExtractors(nil, &transformapi.Parameters{
-			Headers: httpTransformation.Orignal.Headers,
-			Path:    httpTransformation.Orignal.Path,
+			Headers: httpTransformation.Original.Headers,
+			Path:    httpTransformation.Original.Path,
 		})
 	} else {
 		ret.Extractors, err = rest.CreateRequestExtractors(nil, nil)
 	}
 	if err != nil {
-		log.Error(err.Error())
+		log.Errorf("build transformation extractors error: %v, skip Original source extractors", err.Error())
+	}
+
+	if httpTransformation.Advanced != nil {
+		if httpTransformation.Advanced.Extractors != nil {
+			for k, v := range httpTransformation.Advanced.Extractors {
+				ret.Extractors[k] = &transformapi.Extraction{
+					Header:   v.Header,
+					Regex:    v.Regex,
+					Subgroup: v.Subgroup,
+				}
+			}
+		}
 	}
 
 	// build template
