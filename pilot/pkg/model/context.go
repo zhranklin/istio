@@ -65,6 +65,8 @@ type Environment struct {
 	NsfUrlPrefix []string
 
 	NsfHostSuffix string
+
+	EgressDomain string
 }
 
 // Proxy contains information about an specific instance of a proxy (envoy sidecar, gateway,

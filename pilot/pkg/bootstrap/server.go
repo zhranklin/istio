@@ -190,6 +190,7 @@ type PilotArgs struct {
 	NsfUrlPrefix   string
 	NsfHostSuffix  string
 	RLSServerAddrs []string
+	EgressDomain   string
 }
 
 // Server contains the runtime configuration for the Pilot discovery service.
@@ -1028,6 +1029,7 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 	vs := strings.Split(args.NsfUrlPrefix, ",")
 	environment.NsfUrlPrefix = vs
 	environment.NsfHostSuffix = args.NsfHostSuffix
+	environment.EgressDomain = args.EgressDomain
 
 	// Set up discovery service
 	discovery, err := envoy.NewDiscoveryService(

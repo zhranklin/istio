@@ -171,6 +171,9 @@ func init() {
 	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostSuffix, "nsfHostSuffix", "",
 		"Suffix for exspansion domain")
 
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.EgressDomain, "egressDomain", "egress",
+		"default cluster for mapping port ( suffix matched host ) ")
+
 	// Attach the Istio logging options to the command.
 	loggingOptions.AttachCobraFlags(rootCmd)
 
