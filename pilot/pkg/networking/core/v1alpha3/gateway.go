@@ -253,12 +253,15 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 			}
 
 			routes, err := istio_route.BuildHTTPRoutesForVirtualService(node, push, virtualService, nameToServiceMap, port, nil, map[string]bool{gatewayName: true}, true)
+			if err != nil {
+				log.Debugf("%s omitting routes for service %v due to error: %v", node.ID, virtualService, err)
+				continue
+			}
 
 			rateLimits, err := istio_rate_limit.BuildHTTPRateLimitForVirtualService(node, push, virtualService, nameToServiceMap, port, nil, map[string]bool{gatewayName: true})
 
 			if err != nil {
-				log.Debugf("%s omitting routes for service %v due to error: %v", node.ID, virtualService, err)
-				continue
+				log.Warnf("%s omitting rateLimits for service %v due to error: %v", node.ID, virtualService, err)
 			}
 
 			for _, host := range intersectingHosts {
