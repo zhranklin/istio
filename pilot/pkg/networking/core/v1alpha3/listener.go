@@ -31,8 +31,10 @@ import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	fileaccesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v2"
 	accesslog "github.com/envoyproxy/go-control-plane/envoy/config/filter/accesslog/v2"
+	rate_limit_config "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/rate_limit/v2"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/type"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	google_protobuf "github.com/gogo/protobuf/types"
@@ -1448,6 +1450,23 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
+	// for rate limit service config
+	rateLimiterFiler := http_conn.HttpFilter{Name: xdsutil.HTTPRateLimit}
+	rateLimitService := v2.RateLimitServiceConfig{
+		GrpcService: &core.GrpcService{
+			TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
+				EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
+					ClusterName: "rate_limit_service",
+				},
+			},
+		},
+	}
+	rateLimitServiceConfig := rate_limit_config.RateLimit{
+		Domain:           "qingzhou",
+		RateLimitService: &rateLimitService,
+	}
+	rateLimiterFiler.ConfigType = &http_conn.HttpFilter_Config{Config: util.MessageToStruct(&rateLimitServiceConfig)}
+
 	if isGateway {
 		filters = append(filters,
 			&http_conn.HttpFilter{Name: transformation.FilterName},
@@ -1458,6 +1477,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 	filters = append(filters,
 		&http_conn.HttpFilter{Name: xdsutil.CORS},
 		&http_conn.HttpFilter{Name: xdsutil.Fault},
+		&rateLimiterFiler,
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 

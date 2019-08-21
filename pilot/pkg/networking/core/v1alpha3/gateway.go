@@ -32,6 +32,7 @@ import (
 
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
+	istio_rate_limit "istio.io/istio/pilot/pkg/networking/core/v1alpha3/rate_limit"
 	istio_route "istio.io/istio/pilot/pkg/networking/core/v1alpha3/route"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pilot/pkg/networking/util"
@@ -252,6 +253,9 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 			}
 
 			routes, err := istio_route.BuildHTTPRoutesForVirtualService(node, push, virtualService, nameToServiceMap, port, nil, map[string]bool{gatewayName: true}, true)
+
+			rateLimits, err := istio_rate_limit.BuildHTTPRateLimitForVirtualService(node, push, virtualService, nameToServiceMap, port, nil, map[string]bool{gatewayName: true})
+
 			if err != nil {
 				log.Debugf("%s omitting routes for service %v due to error: %v", node.ID, virtualService, err)
 				continue
@@ -271,9 +275,10 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 					}
 				} else {
 					newVHost := &route.VirtualHost{
-						Name:    fmt.Sprintf("%s:%d", host, port),
-						Domains: []string{string(host), fmt.Sprintf("%s:%d", host, port)},
-						Routes:  routes,
+						Name:       fmt.Sprintf("%s:%d", host, port),
+						Domains:    []string{string(host), fmt.Sprintf("%s:%d", host, port)},
+						Routes:     routes,
+						RateLimits: rateLimits,
 					}
 					if server.Tls != nil && server.Tls.HttpsRedirect {
 						newVHost.RequireTls = route.VirtualHost_ALL
