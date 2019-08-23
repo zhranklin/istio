@@ -166,7 +166,7 @@ func init() {
 			" cluster through the backup gateway.")
 	discoveryCmd.PersistentFlags().StringVar(&serverArgs.PortMappingManager, "portMapping", "http|8550:80",
 		"Comma separated list of protocol default port")
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfUrlPrefix, "nsfUrlPrefix", "/proxy,/p,/hash,/chash,/least",
+	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfUrlPrefix, "nsfUrlPrefix", "/proxy",
 		"Comma separated list of url prefix, which will be proccessed by PortMappingManager")
 	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostSuffix, "nsfHostSuffix", "",
 		"Suffix for exspansion domain")
