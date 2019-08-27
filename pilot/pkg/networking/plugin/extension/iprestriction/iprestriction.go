@@ -3,7 +3,6 @@ package iprestriction
 import (
 	"github.com/gogo/protobuf/proto"
 	networking "istio.io/api/networking/v1alpha3"
-	"strings"
 	"yun.netease.com/go-control-plane/api/plugin"
 )
 
@@ -33,24 +32,10 @@ func (i *IpRestrictionPlugin) BuildHostLevelPlugin(service *networking.VirtualSe
 func IpRestriction2Message(ipRestriction *networking.IpRestriction) proto.Message {
 	IpBw := &plugin.BlackOrWhiteList{
 		Type: plugin.ListType(ipRestriction.Type),
-		List: make([]*plugin.IpEntry, len(ipRestriction.Ip)),
+		List: make([]string, len(ipRestriction.Ip)),
 	}
 	for i, ip := range ipRestriction.Ip {
-		IpBw.List[i] = &plugin.IpEntry{
-			Ip: ip,
-			Type: func() plugin.IpType {
-				if strings.Contains(ip, "/") {
-					return plugin.IpType_CIDR
-				}
-				return plugin.IpType_RAW
-			}(),
-			Version: func() plugin.IpVersion {
-				if strings.Contains(ip, ":") {
-					return plugin.IpVersion_IPV6
-				}
-				return plugin.IpVersion_IPV4
-			}(),
-		}
+		IpBw.List[i] = ip
 	}
 	return IpBw
 }
