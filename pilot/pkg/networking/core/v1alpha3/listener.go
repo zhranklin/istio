@@ -341,8 +341,6 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		},
 	}
 	filters := []*http_conn.HttpFilter{
-		{Name: xdsutil.CORS},
-		{Name: xdsutil.Fault},
 		{Name: xdsutil.Router},
 	}
 	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
@@ -1450,34 +1448,33 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
-	// for rate limit service config
-	rateLimiterFiler := http_conn.HttpFilter{Name: xdsutil.HTTPRateLimit}
-	rateLimitService := v2.RateLimitServiceConfig{
-		GrpcService: &core.GrpcService{
-			TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
-				EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
-					ClusterName: "rate_limit_service",
+	if isGateway {
+		// for rate limit service config
+		rateLimiterFiler := http_conn.HttpFilter{Name: xdsutil.HTTPRateLimit}
+		rateLimitService := v2.RateLimitServiceConfig{
+			GrpcService: &core.GrpcService{
+				TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
+					EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
+						ClusterName: "rate_limit_service",
+					},
 				},
 			},
-		},
-	}
-	rateLimitServiceConfig := rate_limit_config.RateLimit{
-		Domain:           "qingzhou",
-		RateLimitService: &rateLimitService,
-	}
-	rateLimiterFiler.ConfigType = &http_conn.HttpFilter_Config{Config: util.MessageToStruct(&rateLimitServiceConfig)}
-
-	if isGateway {
+		}
+		rateLimitServiceConfig := rate_limit_config.RateLimit{
+			Domain:           "qingzhou",
+			RateLimitService: &rateLimitService,
+		}
+		rateLimiterFiler.ConfigType = &http_conn.HttpFilter_Config{Config: util.MessageToStruct(&rateLimitServiceConfig)}
 		filters = append(filters,
+			&http_conn.HttpFilter{Name: xdsutil.CORS},
+			&http_conn.HttpFilter{Name: xdsutil.Fault},
 			&http_conn.HttpFilter{Name: transformation.FilterName},
 			&http_conn.HttpFilter{Name: pl.IpRestriction},
+			&rateLimiterFiler,
 		)
 	}
 
 	filters = append(filters,
-		&http_conn.HttpFilter{Name: xdsutil.CORS},
-		&http_conn.HttpFilter{Name: xdsutil.Fault},
-		&rateLimiterFiler,
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 
