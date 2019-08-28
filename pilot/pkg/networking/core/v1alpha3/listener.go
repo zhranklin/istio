@@ -1562,6 +1562,9 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 	connectionManager.AddUserAgent = &types.BoolValue{
 		Value: true,
 	}
+	connectionManager.UseRemoteAddress = &types.BoolValue{
+		Value: true,
+	}
 
 	return connectionManager
 }
