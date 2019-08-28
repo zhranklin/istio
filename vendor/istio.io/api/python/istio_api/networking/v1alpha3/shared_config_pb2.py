@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='networking/v1alpha3/shared_config.proto',
   package='istio.networking.v1alpha3',
   syntax='proto3',
-  serialized_pb=_b('\n\'networking/v1alpha3/shared_config.proto\x12\x19istio.networking.v1alpha3\"V\n\x0cSharedConfig\x12\x46\n\x12rate_limit_configs\x18\x01 \x03(\x0b\x32*.istio.networking.v1alpha3.RateLimitConfig\"f\n\x0fRateLimitConfig\x12\x0e\n\x06\x64omain\x18\x01 \x01(\t\x12\x43\n\x0b\x64\x65scriptors\x18\x02 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\"\xfa\x02\n\x13RateLimitDescriptor\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12L\n\nrate_limit\x18\x03 \x01(\x0b\x32\x38.istio.networking.v1alpha3.RateLimitDescriptor.RateLimit\x12\x43\n\x0b\x64\x65scriptors\x18\x04 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\x1a\xb3\x01\n\tRateLimit\x12\x19\n\x11requests_per_unit\x18\x01 \x01(\r\x12K\n\x04unit\x18\x02 \x01(\x0e\x32=.istio.networking.v1alpha3.RateLimitDescriptor.RateLimit.Unit\">\n\x04Unit\x12\x0b\n\x07UNKNOWN\x10\x00\x12\n\n\x06SECOND\x10\x01\x12\n\n\x06MINUTE\x10\x02\x12\x08\n\x04HOUR\x10\x03\x12\x07\n\x03\x44\x41Y\x10\x04\x42\"Z istio.io/api/networking/v1alpha3b\x06proto3')
+  serialized_pb=_b('\n\'networking/v1alpha3/shared_config.proto\x12\x19istio.networking.v1alpha3\"V\n\x0cSharedConfig\x12\x46\n\x12rate_limit_configs\x18\x01 \x03(\x0b\x32*.istio.networking.v1alpha3.RateLimitConfig\"f\n\x0fRateLimitConfig\x12\x0e\n\x06\x64omain\x18\x01 \x01(\t\x12\x43\n\x0b\x64\x65scriptors\x18\x02 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\"\x87\x03\n\x13RateLimitDescriptor\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12L\n\nrate_limit\x18\x03 \x01(\x0b\x32\x38.istio.networking.v1alpha3.RateLimitDescriptor.RateLimit\x12\x43\n\x0b\x64\x65scriptors\x18\x04 \x03(\x0b\x32..istio.networking.v1alpha3.RateLimitDescriptor\x12\x0b\n\x03\x61pi\x18\x05 \x01(\t\x1a\xb3\x01\n\tRateLimit\x12\x19\n\x11requests_per_unit\x18\x01 \x01(\r\x12K\n\x04unit\x18\x02 \x01(\x0e\x32=.istio.networking.v1alpha3.RateLimitDescriptor.RateLimit.Unit\">\n\x04Unit\x12\x0b\n\x07UNKNOWN\x10\x00\x12\n\n\x06SECOND\x10\x01\x12\n\n\x06MINUTE\x10\x02\x12\x08\n\x04HOUR\x10\x03\x12\x07\n\x03\x44\x41Y\x10\x04\x42\"Z istio.io/api/networking/v1alpha3b\x06proto3')
 )
 
 
@@ -53,8 +53,8 @@ _RATELIMITDESCRIPTOR_RATELIMIT_UNIT = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=579,
-  serialized_end=641,
+  serialized_start=592,
+  serialized_end=654,
 )
 _sym_db.RegisterEnumDescriptor(_RATELIMITDESCRIPTOR_RATELIMIT_UNIT)
 
@@ -162,8 +162,8 @@ _RATELIMITDESCRIPTOR_RATELIMIT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=462,
-  serialized_end=641,
+  serialized_start=475,
+  serialized_end=654,
 )
 
 _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
@@ -201,6 +201,13 @@ _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='api', full_name='istio.networking.v1alpha3.RateLimitDescriptor.api', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -214,7 +221,7 @@ _RATELIMITDESCRIPTOR = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=263,
-  serialized_end=641,
+  serialized_end=654,
 )
 
 _SHAREDCONFIG.fields_by_name['rate_limit_configs'].message_type = _RATELIMITCONFIG
