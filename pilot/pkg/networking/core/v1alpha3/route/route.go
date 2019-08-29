@@ -253,14 +253,12 @@ allroutes:
 	for _, http := range vs.Http {
 		if len(http.Match) == 0 {
 			if r := translateRoute(push, node, http, nil, listenPort, virtualService, serviceRegistry, proxyLabels, gatewayNames, isGateway); r != nil {
-				generateUserHeader(proxyLabels, r.RequestHeadersToAdd)
 				out = append(out, *r)
 			}
 			break allroutes // we have a rule with catch all match prefix: /. Other rules are of no use
 		} else {
 			for _, match := range http.Match {
 				if r := translateRoute(push, node, http, match, listenPort, virtualService, serviceRegistry, proxyLabels, gatewayNames, isGateway); r != nil {
-					generateUserHeader(proxyLabels, r.RequestHeadersToAdd)
 					out = append(out, *r)
 					rType, _ := getEnvoyRouteTypeAndVal(r)
 					if rType == envoyCatchAll {
@@ -280,7 +278,9 @@ allroutes:
 
 func generateUserHeader(proxyLabels model.LabelsCollection, headerOpt []*core.HeaderValueOption) {
 	for _, labels := range proxyLabels {
+		log.Infof("labels:%v", labels)
 		if v, ok := labels["yanxuan/app"]; ok {
+			log.Infof("add x-yanxuan-app")
 			headerOpt = append(headerOpt, &core.HeaderValueOption{
 				Header: &core.HeaderValue{
 					Key:   "x-yanxuan-app",

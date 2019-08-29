@@ -16,6 +16,7 @@ package v1alpha3
 
 import (
 	"fmt"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"strconv"
 	"strings"
 
@@ -292,6 +293,23 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 		Name:             routeName,
 		VirtualHosts:     virtualHosts,
 		ValidateClusters: proto.BoolFalse,
+	}
+
+	// add x-yanxuan-app header
+	label := func(proxyLabels model.LabelsCollection) string {
+		for _, v := range proxyLabels {
+			if l, ok := v["yanxuan/app"]; ok {
+				return l
+			}
+		}
+		return "anonymous"
+	}(proxyLabels)
+	out.RequestHeadersToAdd = make([]*core.HeaderValueOption, 1)
+	out.RequestHeadersToAdd[0] = &core.HeaderValueOption{
+		Header: &core.HeaderValue{
+			Key:   "x-yanxuan-app",
+			Value: label + "." + node.ConfigNamespace,
+		},
 	}
 
 	// call plugins
