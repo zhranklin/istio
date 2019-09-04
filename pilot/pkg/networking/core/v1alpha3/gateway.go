@@ -16,7 +16,6 @@ package v1alpha3
 
 import (
 	"fmt"
-	"istio.io/istio/pilot/pkg/networking/plugin/extension"
 	"strconv"
 	"strings"
 
@@ -28,7 +27,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
@@ -267,15 +266,7 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 			for _, host := range intersectingHosts {
 				if vHost, exists := vHostDedupMap[host]; exists {
 					vHost.Routes = istio_route.CombineVHostRoutes(vHost.Routes, routes)
-					for _, plugin := range extension.GetEnablePlugin() {
-						if message, ok := plugin.BuildHostLevelPlugin(virtualService.Spec.(*networking.VirtualService)); ok {
-							if util.IsXDSMarshalingToAnyEnabled(node) {
-								vHost.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
-							} else {
-								vHost.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
-							}
-						}
-					}
+					addGatewayHostLevelPlugin(virtualService, node, vHost)
 				} else {
 					newVHost := &route.VirtualHost{
 						Name:       fmt.Sprintf("%s:%d", host, port),
@@ -286,15 +277,7 @@ func (configgen *ConfigGeneratorImpl) buildGatewayHTTPRouteConfig(env *model.Env
 					if server.Tls != nil && server.Tls.HttpsRedirect {
 						newVHost.RequireTls = route.VirtualHost_ALL
 					}
-					for _, plugin := range extension.GetEnablePlugin() {
-						if message, ok := plugin.BuildHostLevelPlugin(virtualService.Spec.(*networking.VirtualService)); ok {
-							if util.IsXDSMarshalingToAnyEnabled(node) {
-								newVHost.TypedPerFilterConfig[plugin.GetName()] = util.MessageToAny(message)
-							} else {
-								newVHost.PerFilterConfig[plugin.GetName()] = util.MessageToStruct(message)
-							}
-						}
-					}
+					addGatewayHostLevelPlugin(virtualService, node, newVHost)
 					vHostDedupMap[host] = newVHost
 				}
 			}

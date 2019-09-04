@@ -759,10 +759,6 @@ func (ps *PushContext) initVirtualServices(env *Environment) error {
 	return nil
 }
 
-func (ps *PushContext) initSharedConfigs(env *Environment) error {
-	return nil
-}
-
 func (ps *PushContext) initDefaultExportMaps() {
 	ps.defaultDestinationRuleExportTo = make(map[Visibility]bool)
 	if ps.Env.Mesh.DefaultDestinationRuleExportTo != nil {

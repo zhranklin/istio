@@ -16,7 +16,6 @@ package v1alpha3
 
 import (
 	"fmt"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"strconv"
 	"strings"
 
@@ -182,19 +181,8 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 					Domains: []string{host, fmt.Sprintf("%s:%d", host, virtualHostWrapper.Port)},
 					Routes:  virtualHostWrapper.Routes,
 				}
-				if push.Env.NsfHostSuffix != "" && isK8SSvcHost(host) {
-					serviceName := strings.Split(host, ".")[0]
-					namespace := strings.Split(host, ".")[1]
-					n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
-					if _, ok := uniques[n]; ok {
-						push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s, when add prefix and suffix", name))
-						log.Debugf("Dropping duplicate route entry %v.", n)
-						continue
-					}
-					if serviceName == env.EgressDomain {
-						egressVh = &vh
-					}
-					vh.Domains = append(vh.Domains, namespace+"."+serviceName+push.Env.NsfHostSuffix)
+				if addSuffixIfNecessary(push, host, virtualHostWrapper, uniques, name, node, env, egressVh, vh) {
+					continue
 				}
 				virtualHosts = append(virtualHosts, vh)
 			} else {
@@ -295,22 +283,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 		ValidateClusters: proto.BoolFalse,
 	}
 
-	// add x-yanxuan-app header
-	label := func(proxyLabels model.LabelsCollection) string {
-		for _, v := range proxyLabels {
-			if l, ok := v["yanxuan/app"]; ok {
-				return l
-			}
-		}
-		return "anonymous"
-	}(proxyLabels)
-	out.RequestHeadersToAdd = make([]*core.HeaderValueOption, 1)
-	out.RequestHeadersToAdd[0] = &core.HeaderValueOption{
-		Header: &core.HeaderValue{
-			Key:   "x-yanxuan-app",
-			Value: label + "." + node.ConfigNamespace,
-		},
-	}
+	addXYanxuanAppHeader(proxyLabels, out, node)
 
 	// call plugins
 	for _, p := range configgen.Plugins {
@@ -324,16 +297,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 	}
 
 	return out
-}
-func isK8SSvcHost(name string) bool {
-	strs := strings.Split(name, ".")
-	if len(strs) != 5 {
-		return false
-	}
-	if strs[2] != "svc" {
-		return false
-	}
-	return true
 }
 
 // generateVirtualHostDomains generates the set of domain matches for a service being accessed from

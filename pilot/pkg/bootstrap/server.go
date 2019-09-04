@@ -35,12 +35,12 @@ import (
 	"github.com/gogo/protobuf/types"
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -507,19 +507,6 @@ func (s *Server) initKubeClient(args *PilotArgs) error {
 		}
 		s.kubeClient = client
 
-	}
-
-	return nil
-}
-
-// initRlsClient creates the RLS client if running with rate limiter service enable.
-func (s *Server) initRlsClient(args *PilotArgs) error {
-	if args.RLSServerAddrs != nil && len(args.RLSServerAddrs) > 0 {
-		client, rlserr := rlslib.CreateClientSet(args.RLSServerAddrs)
-		if rlserr != nil {
-			return multierror.Prefix(rlserr, "failed to connect to RLS server ")
-		}
-		s.rlsClientSet = client
 	}
 
 	return nil
@@ -1020,16 +1007,7 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 		PortManagerMap:   make(map[string][2]int),
 	}
 
-	kvs := strings.Split(args.PortMappingManager, ",")
-	for _, value := range kvs {
-		protocol, src, dst := parserPortMapping(value)
-		environment.PortManagerMap[protocol] = [2]int{src, dst}
-	}
-
-	vs := strings.Split(args.NsfUrlPrefix, ",")
-	environment.NsfUrlPrefix = vs
-	environment.NsfHostSuffix = args.NsfHostSuffix
-	environment.EgressDomain = args.EgressDomain
+	s.initNsfEnviroment(args, environment)
 
 	// Set up discovery service
 	discovery, err := envoy.NewDiscoveryService(
@@ -1163,25 +1141,6 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 	}
 
 	return nil
-}
-
-func parserPortMapping(str string) (string, int, int) {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Errorf("Invalid port input: %v ,so skip", err)
-		}
-	}()
-	per := strings.Split(str, "|")
-	sd := strings.Split(per[1], ":")
-	srcport, err := strconv.Atoi(sd[0])
-	if err != nil {
-		panic(err)
-	}
-	dstport, err := strconv.Atoi(sd[1])
-	if err != nil {
-		panic(err)
-	}
-	return per[0], srcport, dstport
 }
 
 func (s *Server) initConsulRegistry(serviceControllers *aggregate.Controller, args *PilotArgs) error {

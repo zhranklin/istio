@@ -537,6 +537,7 @@ func isValidIPAddress(ip string) bool {
 
 // Pile all node metadata constants here
 const (
+
 	// NodeMetadataIstioProxyVersion specifies the Envoy version associated with the proxy
 	NodeMetadataIstioProxyVersion = "ISTIO_PROXY_VERSION"
 

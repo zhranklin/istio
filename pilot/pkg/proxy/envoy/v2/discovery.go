@@ -193,13 +193,18 @@ func intEnv(envVal string, def int) int {
 }
 
 // NewDiscoveryServer creates DiscoveryServer that sources data from Pilot's internal mesh data structures
-func NewDiscoveryServer(env *model.Environment, generator core.ConfigGenerator, ctl model.Controller,
-	kubeController *kube.Controller, configCache model.ConfigStoreCache, rlsClientSet rlsclient.ClientSetInterface) *DiscoveryServer {
+func NewDiscoveryServer(
+	env *model.Environment,
+	generator core.ConfigGenerator,
+	ctl model.Controller,
+	kuebController *kube.Controller,
+	configCache model.ConfigStoreCache,
+	rlsClientSet rlsclient.ClientSetInterface) *DiscoveryServer {
 	out := &DiscoveryServer{
 		Env:                     env,
 		ConfigGenerator:         generator,
 		ConfigController:        configCache,
-		KubeController:          kubeController,
+		KubeController:          kuebController,
 		EndpointShardsByService: map[string]*EndpointShards{},
 		WorkloadsByID:           map[string]*Workload{},
 		edsUpdates:              map[string]struct{}{},
@@ -227,16 +232,9 @@ func NewDiscoveryServer(env *model.Environment, generator core.ConfigGenerator, 
 	if configCache != nil {
 		// TODO: changes should not trigger a full recompute of LDS/RDS/CDS/EDS
 		// (especially mixerclient HTTP and quota)
-		configHandler := func(c model.Config, e model.Event) {
-			if c.Type == model.SharedConfig.Type {
-				if rlsClientSet != nil {
-					rlsClientSet.DoSharedConfigSync(c, e)
-				}
-			}
-			out.clearCache()
-		}
+		//configHandler := func(model.Config, model.Event) { out.clearCache() }
+		configHandler := configHandler(rlsClientSet, out)
 		for _, descriptor := range model.IstioConfigTypes {
-			// handle shared config for update rate limiter service
 			configCache.RegisterEventHandler(descriptor.Type, configHandler)
 		}
 	}

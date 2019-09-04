@@ -121,11 +121,6 @@ func init() {
 	discoveryCmd.PersistentFlags().IntVar(&serverArgs.MCPMaxMessageSize, "mcpMaxMsgSize", bootstrap.DefaultMCPMaxMsgSize,
 		"Max message size received by MCP's grpc client")
 
-	// RLS client flags
-	discoveryCmd.PersistentFlags().StringSliceVar(&serverArgs.RLSServerAddrs, "rlsServerAddrs", []string{},
-		"comma separated list of RLS server addresses with "+
-			"rls:// (insecure) or rlss:// (secure) schema, e.g. rlss://istio-rls.istio-system.svc:9901")
-
 	// Config Controller options
 	discoveryCmd.PersistentFlags().BoolVar(&serverArgs.Config.DisableInstallCRDs, "disable-install-crds", false,
 		"Disable discovery service from verifying the existence of CRDs at startup and then installing if not detected.  "+
@@ -160,19 +155,7 @@ func init() {
 	discoveryCmd.PersistentFlags().BoolVar(&serverArgs.DiscoveryOptions.EnableCaching, "discoveryCache", true,
 		"Enable caching discovery service responses")
 
-	//nsf-extension
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.BackUpAddress, "backupAddress", "",
-		"The address of backup gateway,  When the current cluster has no healthy instance, access the external"+
-			" cluster through the backup gateway.")
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.PortMappingManager, "portMapping", "http|8550:80",
-		"Comma separated list of protocol default port")
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfUrlPrefix, "nsfUrlPrefix", "/proxy",
-		"Comma separated list of url prefix, which will be proccessed by PortMappingManager")
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.NsfHostSuffix, "nsfHostSuffix", "",
-		"Suffix for exspansion domain")
-
-	discoveryCmd.PersistentFlags().StringVar(&serverArgs.EgressDomain, "egressDomain", "egress",
-		"default cluster for mapping port ( suffix matched host ) ")
+	processNsfExtensionFlags()
 
 	// Attach the Istio logging options to the command.
 	loggingOptions.AttachCobraFlags(rootCmd)
@@ -195,7 +178,6 @@ func init() {
 }
 
 func main() {
-	log.Info("version: 4ad559412482717714d052fa256152520c7a2d73")
 	if err := rootCmd.Execute(); err != nil {
 		log.Errora(err)
 		os.Exit(-1)

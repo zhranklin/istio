@@ -17,11 +17,8 @@ package v1alpha3
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gogo/protobuf/types"
-	"github.com/solo-io/gloo/projects/gloo/pkg/plugins/transformation"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,14 +28,13 @@ import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	fileaccesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v2"
 	accesslog "github.com/envoyproxy/go-control-plane/envoy/config/filter/accesslog/v2"
-	rate_limit_config "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/rate_limit/v2"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/type"
+	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	google_protobuf "github.com/gogo/protobuf/types"
 	"github.com/prometheus/client_golang/prometheus"
+
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
@@ -47,7 +43,6 @@ import (
 	"istio.io/istio/pkg/features/pilot"
 	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/proto"
-	pl "yun.netease.com/go-control-plane/api/plugin"
 )
 
 const (
@@ -236,15 +231,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 				},
 			},
 		})
-
-		//Todo: support other protocol
-		for k, v := range env.PortManagerMap {
-			switch k {
-			case "http":
-				l := configgen.buildDefaultHttpPortMappingListener(v[0], v[1], env, node, proxyInstances)
-				listeners = append(listeners, l)
-			}
-		}
+		listeners = configgen.addDefaultPort(env, node, proxyInstances, listeners)
 	}
 
 	httpProxyPort := mesh.ProxyHttpPort
@@ -307,61 +294,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarListeners(env *model.Environme
 	}
 
 	return listeners, nil
-}
-
-func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
-	env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance) *xdsapi.Listener {
-	log.Infof("default listener build start")
-	httpOpts := &httpListenerOpts{
-		useRemoteAddress: false,
-		direction:        http_conn.EGRESS,
-		rds:              strconv.Itoa(dstPort),
-	}
-	opts := buildListenerOpts{
-		env:            env,
-		proxy:          node,
-		proxyInstances: proxyInstances,
-		bind:           WildcardAddress,
-		port:           srcPort,
-		filterChainOpts: []*filterChainOpts{{
-			httpOpts: httpOpts,
-		}},
-		bindToPort:      true,
-		skipUserFilters: true,
-	}
-	l := buildListener(opts)
-	rds := &http_conn.HttpConnectionManager_Rds{
-		Rds: &http_conn.Rds{
-			ConfigSource: core.ConfigSource{
-				ConfigSourceSpecifier: &core.ConfigSource_Ads{
-					Ads: &core.AggregatedConfigSource{},
-				},
-			},
-			RouteConfigName: httpOpts.rds,
-		},
-	}
-	filters := []*http_conn.HttpFilter{
-		{Name: xdsutil.Router},
-	}
-	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
-	for i, value := range env.NsfUrlPrefix {
-		urltransformers[i] = &http_conn.UrlTransformer{
-			Prefix: value,
-		}
-	}
-	l.FilterChains[0].Filters = append(l.FilterChains[0].Filters, listener.Filter{
-		Name: xdsutil.HTTPConnectionManager,
-		ConfigType: &listener.Filter_TypedConfig{
-			TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
-				CodecType:      http_conn.AUTO,
-				StatPrefix:     "http_default",
-				RouteSpecifier: rds,
-				HttpFilters:    filters,
-				UrlTransformer: urltransformers,
-			}),
-		},
-	})
-	return l
 }
 
 // buildSidecarInboundListeners creates listeners for the server-side (inbound)
@@ -728,6 +660,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListeners(env *model.E
 
 		for _, service := range services {
 			for _, servicePort := range service.Ports {
+
 				listenerOpts := buildListenerOpts{
 					env:            env,
 					proxy:          node,
@@ -961,7 +894,7 @@ func validatePort(node *model.Proxy, i int, bindToPort bool) bool {
 // adds it to the listenerMap provided by the caller.  Listeners are added
 // if one doesn't already exist. HTTP listeners on same port are ignored
 // (as vhosts are shipped through RDS).  TCP listeners on same port are
-// allowed only if they have different CIDR matches.·
+// allowed only if they have different CIDR matches.
 func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(listenerOpts buildListenerOpts,
 	pluginParams *plugin.InputParams, listenerMap map[string]*outboundListenerEntry, virtualServices []model.Config) {
 
@@ -1176,7 +1109,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListenerForPortOrUDS(l
 		// if and only if the filter chains have distinct conditions
 		// Extract the current filter chain matches
 		// For every new filter chain match being added, check if any previous match is same
-		// if so,  skip adding this filter chain with a warning
+		// if so, skip adding this filter chain with a warning
 		// This is very unoptimized.
 		newFilterChains := make([]listener.FilterChain, 0,
 			len(currentListenerEntry.listener.FilterChains)+len(mutable.Listener.FilterChains))
@@ -1448,35 +1381,12 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
-	if isGateway {
-		// for rate limit service config
-		rateLimiterFiler := http_conn.HttpFilter{Name: xdsutil.HTTPRateLimit}
-		rateLimitService := v2.RateLimitServiceConfig{
-			GrpcService: &core.GrpcService{
-				TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
-					EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
-						ClusterName: "rate_limit_service",
-					},
-				},
-			},
-		}
-		rateLimitServiceConfig := rate_limit_config.RateLimit{
-			Domain:           "qingzhou",
-			RateLimitService: &rateLimitService,
-		}
-		rateLimiterFiler.ConfigType = &http_conn.HttpFilter_Config{Config: util.MessageToStruct(&rateLimitServiceConfig)}
-		filters = append(filters,
-			&http_conn.HttpFilter{Name: xdsutil.CORS},
-			&http_conn.HttpFilter{Name: xdsutil.Fault},
-			&http_conn.HttpFilter{Name: transformation.FilterName},
-			&http_conn.HttpFilter{Name: pl.IpRestriction},
-			&rateLimiterFiler,
-		)
-	}
-
-	filters = append(filters,
-		&http_conn.HttpFilter{Name: xdsutil.Router},
-	)
+	//filters = append(filters,
+	//	&http_conn.HttpFilter{Name: xdsutil.CORS},
+	//	&http_conn.HttpFilter{Name: xdsutil.Fault},
+	//	&http_conn.HttpFilter{Name: xdsutil.Router},
+	//)
+	filters = addFilters(isGateway, filters)
 
 	if httpOpts.connectionManager == nil {
 		httpOpts.connectionManager = &http_conn.HttpConnectionManager{}
@@ -1559,12 +1469,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		}
 		connectionManager.GenerateRequestId = proto.BoolTrue
 	}
-	connectionManager.AddUserAgent = &types.BoolValue{
-		Value: true,
-	}
-	connectionManager.UseRemoteAddress = &types.BoolValue{
-		Value: true,
-	}
+	addAdditionalConnectionManagerConfigs(connectionManager)
 
 	return connectionManager
 }
@@ -1701,8 +1606,7 @@ func appendListenerFallthroughRoute(l *xdsapi.Listener, opts *buildListenerOpts,
 // TODO: given how tightly tied listener.FilterChains, opts.filterChainOpts, and mutable.FilterChains are to eachother
 // we should encapsulate them some way to ensure they remain consistent (mainly that in each an index refers to the same
 // chain)
-func buildCompleteFilterChain(pluginParams *plugin.InputParams, mutable *plugin.MutableObjects, opts buildListenerOpts,
-	isGateway bool) error {
+func buildCompleteFilterChain(pluginParams *plugin.InputParams, mutable *plugin.MutableObjects, opts buildListenerOpts, isGateway bool) error {
 	if len(opts.filterChainOpts) == 0 {
 		return fmt.Errorf("must have more than 0 chains in listener: %#v", mutable.Listener)
 	}
