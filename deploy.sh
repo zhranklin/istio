@@ -10,8 +10,7 @@ else
    export TAG=$branch-$tag
 fi
 
-make $1
-make docker.$1
-echo ${HUB}/$1:${TAG}
-docker push ${HUB}/$1:${TAG}
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make $1 &&
+echo ${HUB}/$1:${TAG} &&
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make push.docker.$1
 
