@@ -1,10 +1,15 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   creationTimestamp: null
   name: hello
 spec:
   replicas: 7
+  selector:
+    matchLabels:
+      app: hello
+      tier: backend
+      track: stable
   strategy: {}
   template:
     metadata:
@@ -62,6 +67,8 @@ spec:
         - istio-pilot:15010
         - --zipkinAddress
         - ""
+        - --dnsRefreshRate
+        - 300s
         - --connectTimeout
         - 1s
         - --proxyAdminPort
@@ -97,6 +104,8 @@ spec:
               fieldPath: metadata.namespace
         - name: ISTIO_META_INTERCEPTION_MODE
           value: REDIRECT
+        - name: ISTIO_META_INCLUDE_INBOUND_PORTS
+          value: 80,90
         image: gcr.io/istio-release/proxyv2:master-latest-daily
         imagePullPolicy: IfNotPresent
         name: istio-proxy

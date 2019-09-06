@@ -33,7 +33,7 @@ import (
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/route/retry"
 	"istio.io/istio/pilot/pkg/networking/util"
-	"istio.io/istio/pkg/log"
+	"istio.io/pkg/log"
 )
 
 // Headers with special meaning in Envoy
@@ -211,11 +211,10 @@ func GetDestinationCluster(destination *networking.Destination, service *model.S
 		case *networking.PortSelector_Number:
 			port = int(selector.Number)
 		}
-	} else {
+	} else if service != nil && len(service.Ports) == 1 {
 		// if service only has one port defined, use that as the port, otherwise use default listenerPort
-		if service != nil && len(service.Ports) == 1 {
-			port = service.Ports[0].Port
-		}
+		port = service.Ports[0].Port
+
 		// Do not return blackhole cluster for service==nil case as there is a legitimate use case for
 		// calling this function with nil service: to route to a pre-defined statically configured cluster
 		// declared as part of the bootstrap.
@@ -466,9 +465,9 @@ func translateRoute(push *model.PushContext, node *model.Proxy, in *networking.H
 	}
 	if fault := in.Fault; fault != nil {
 		if util.IsXDSMarshalingToAnyEnabled(node) {
-			out.TypedPerFilterConfig[xdsutil.Fault] = util.MessageToAny(translateFault(node, in.Fault))
+			out.TypedPerFilterConfig[xdsutil.Fault] = util.MessageToAny(translateFault(in.Fault))
 		} else {
-			out.PerFilterConfig[xdsutil.Fault] = util.MessageToStruct(translateFault(node, in.Fault))
+			out.PerFilterConfig[xdsutil.Fault] = util.MessageToStruct(translateFault(in.Fault))
 		}
 	}
 
@@ -546,6 +545,8 @@ func translateRouteMatch(in *networking.HTTPMatchRequest) route.RouteMatch {
 		}
 	}
 
+	out.CaseSensitive = &types.BoolValue{Value: !in.IgnoreUriCase}
+
 	if in.Method != nil {
 		matcher := translateHeaderMatch(HeaderMethod, in.Method)
 		out.Headers = append(out.Headers, &matcher)
@@ -595,6 +596,7 @@ func translateCORSPolicy(in *networking.CorsPolicy, node *model.Proxy) *route.Co
 		return nil
 	}
 
+	// CORS filter is enabled by default
 	out := route.CorsPolicy{
 		AllowOrigin: in.AllowOrigin,
 	}
@@ -697,7 +699,7 @@ func translateIntegerToFractionalPercent(p int32) *xdstype.FractionalPercent {
 }
 
 // translateFault translates networking.HTTPFaultInjection into Envoy's HTTPFault
-func translateFault(node *model.Proxy, in *networking.HTTPFaultInjection) *xdshttpfault.HTTPFault {
+func translateFault(in *networking.HTTPFaultInjection) *xdshttpfault.HTTPFault {
 	if in == nil {
 		return nil
 	}
@@ -705,18 +707,10 @@ func translateFault(node *model.Proxy, in *networking.HTTPFaultInjection) *xdsht
 	out := xdshttpfault.HTTPFault{}
 	if in.Delay != nil {
 		out.Delay = &xdsfault.FaultDelay{Type: xdsfault.FaultDelay_FIXED}
-		if util.IsProxyVersionGE11(node) {
-			if in.Delay.Percentage != nil {
-				out.Delay.Percentage = translatePercentToFractionalPercent(in.Delay.Percentage)
-			} else {
-				out.Delay.Percentage = translateIntegerToFractionalPercent(in.Delay.Percent)
-			}
+		if in.Delay.Percentage != nil {
+			out.Delay.Percentage = translatePercentToFractionalPercent(in.Delay.Percentage)
 		} else {
-			if in.Delay.Percentage != nil {
-				out.Delay.Percentage = translatePercentToFractionalPercent(in.Delay.Percentage)
-			} else {
-				out.Delay.Percentage = translateIntegerToFractionalPercent(in.Delay.Percent)
-			}
+			out.Delay.Percentage = translateIntegerToFractionalPercent(in.Delay.Percent)
 		}
 		switch d := in.Delay.HttpDelayType.(type) {
 		case *networking.HTTPFaultInjection_Delay_FixedDelay:
@@ -732,18 +726,10 @@ func translateFault(node *model.Proxy, in *networking.HTTPFaultInjection) *xdsht
 
 	if in.Abort != nil {
 		out.Abort = &xdshttpfault.FaultAbort{}
-		if util.IsProxyVersionGE11(node) {
-			if in.Abort.Percentage != nil {
-				out.Abort.Percentage = translatePercentToFractionalPercent(in.Abort.Percentage)
-			} else {
-				out.Abort.Percentage = translateIntegerToFractionalPercent(in.Abort.Percent)
-			}
+		if in.Abort.Percentage != nil {
+			out.Abort.Percentage = translatePercentToFractionalPercent(in.Abort.Percentage)
 		} else {
-			if in.Abort.Percentage != nil {
-				out.Abort.Percentage = translatePercentToFractionalPercent(in.Abort.Percentage)
-			} else {
-				out.Abort.Percentage = translateIntegerToFractionalPercent(in.Abort.Percent)
-			}
+			out.Abort.Percentage = translateIntegerToFractionalPercent(in.Abort.Percent)
 		}
 		switch a := in.Abort.ErrorType.(type) {
 		case *networking.HTTPFaultInjection_Abort_HttpStatus:

@@ -47,6 +47,8 @@ function setup_and_export_git_sha() {
     GIT_SHA="$(git rev-parse --verify HEAD)"
     export GIT_SHA
   fi
+  GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+  export GIT_BRANCH
   gcloud auth configure-docker -q
 }
 
@@ -111,6 +113,37 @@ function clone_cni() {
       git clone -b master "https://github.com/istio/cni.git"
       cd "${TMP_DIR}" || return
   fi
+}
+
+function check_and_install_kind() {
+  echo "Checking KinD is installed..."
+  if ! kind --help > /dev/null; then
+    if ! (go get sigs.k8s.io/kind); then
+      echo "Looks like KinD installation failed."
+      exit 1
+    fi
+  fi
+}
+
+function setup_kind_cluster() {
+  # Installing KinD
+  check_and_install_kind
+
+  # Delete any previous e2e KinD cluster
+  echo "Deleting previous KinD cluster with name=e2e-suite"
+  if ! (kind delete cluster --name=e2e-suite) > /dev/null; then
+  	echo "No Found existing kind cluster with name e2e-suite. Continue..."
+  fi
+
+  # Create KinD cluster
+  if ! (kind create cluster --name=e2e-suite); then
+    echo "Could not setup KinD environment. Something wrong with KinD setup. Please check your setup and try again."
+    exit 1
+  fi
+
+  export GIT_SHA="${GIT_SHA:-$TAG}"
+  KUBECONFIG="$(kind get kubeconfig-path --name="e2e-suite")"
+  export KUBECONFIG
 }
 
 function cni_run_daemon() {

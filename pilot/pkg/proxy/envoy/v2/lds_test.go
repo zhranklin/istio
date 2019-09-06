@@ -23,6 +23,8 @@ import (
 	xdsapi_listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	xdsapi_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 
+	"istio.io/istio/pkg/features/pilot"
+
 	testenv "istio.io/istio/mixer/test/client/env"
 	"istio.io/istio/pilot/pkg/bootstrap"
 	"istio.io/istio/pilot/pkg/model"
@@ -190,6 +192,7 @@ func TestLDSWithDefaultSidecar(t *testing.T) {
 		args.Config.FileDir = env.IstioSrc + "/tests/testdata/networking/sidecar-ns-scope"
 		args.Mesh.MixerAddress = ""
 		args.Mesh.RdsRefreshDelay = nil
+		args.MeshConfig = nil
 		args.Mesh.ConfigFile = env.IstioSrc + "/tests/testdata/networking/sidecar-ns-scope/mesh.yaml"
 		args.Service.Registries = []string{}
 	})
@@ -372,32 +375,6 @@ func TestLDS(t *testing.T) {
 		}
 	})
 
-	t.Run("ingress", func(t *testing.T) {
-		ldsr, cancel, err := connectADS(util.MockPilotGrpcAddr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer cancel()
-
-		err = sendLDSReq(ingressID(ingressIP), ldsr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := ldsr.Recv()
-		if err != nil {
-			t.Fatal("Failed to receive LDS", err)
-			return
-		}
-
-		strResponse, _ := model.ToJSONWithIndent(res, " ")
-
-		_ = ioutil.WriteFile(env.IstioOut+"/ads_lds_ingress.json", []byte(strResponse), 0644)
-
-		if len(res.Resources) == 0 {
-			t.Fatal("No response")
-		}
-	})
 	// TODO: compare with some golden once it's stable
 	// check that each mocked service and destination rule has a corresponding resource
 
@@ -459,8 +436,12 @@ func TestLDSWithSidecarForWorkloadWithoutService(t *testing.T) {
 	// TODO: This is flimsy. The ADSC code treats any listener with http connection manager as a HTTP listener
 	// instead of looking at it as a listener with multiple filter chains
 	if l := adsResponse.HTTPListeners["0.0.0.0_8081"]; l != nil {
-		if len(l.FilterChains) != 1 {
-			t.Fatalf("Expected 1 filter chains, got %d", len(l.FilterChains))
+		expected := 1
+		if pilot.RestrictPodIPTrafficLoops.Get() {
+			expected = 2
+		}
+		if len(l.FilterChains) != expected {
+			t.Fatalf("Expected %d filter chains, got %d", expected, len(l.FilterChains))
 		}
 	} else {
 		t.Fatal("Expected listener for 0.0.0.0_8081")
@@ -564,15 +545,21 @@ func TestLDSEnvoyFilterWithWorkloadSelector(t *testing.T) {
 func expectLuaFilter(t *testing.T, l *xdsapi.Listener, expected bool) {
 
 	if l != nil {
-		if len(l.FilterChains) != 1 {
-			t.Fatalf("Expected 1 filter chains, got %d", len(l.FilterChains))
+		var chain *xdsapi_listener.FilterChain
+		for _, fc := range l.FilterChains {
+			if len(fc.Filters) == 1 && fc.Filters[0].Name == "envoy.http_connection_manager" {
+				chain = &fc
+			}
 		}
-		if len(l.FilterChains[0].Filters) != 1 {
+		if chain == nil {
+			t.Fatalf("Failed to find http_connection_manager")
+		}
+		if len(chain.Filters) != 1 {
 			t.Fatalf("Expected 1 filter in first filter chain, got %d", len(l.FilterChains))
 		}
-		filter := l.FilterChains[0].Filters[0]
+		filter := chain.Filters[0]
 		if filter.Name != "envoy.http_connection_manager" {
-			t.Fatalf("Expected HTTP connection, found %v", l.FilterChains[0].Filters[0].Name)
+			t.Fatalf("Expected HTTP connection, found %v", chain.Filters[0].Name)
 		}
 		httpCfg, ok := filter.ConfigType.(*xdsapi_listener.Filter_TypedConfig)
 		if !ok {

@@ -22,7 +22,7 @@ import (
 
 	monitoring "cloud.google.com/go/monitoring/apiv3"
 	"github.com/golang/protobuf/ptypes"
-	gax "github.com/googleapis/gax-go"
+	gax "github.com/googleapis/gax-go/v2"
 	xcontext "golang.org/x/net/context"
 	labelpb "google.golang.org/genproto/googleapis/api/label"
 	metricpb "google.golang.org/genproto/googleapis/api/metric"
@@ -74,6 +74,7 @@ type (
 		client     bufferedClient
 		// We hold a ref for cleanup during Close()
 		ticker *time.Ticker
+		quit   chan struct{}
 	}
 )
 
@@ -169,7 +170,7 @@ func (b *builder) Build(ctx context.Context, env adapter.Env) (adapter.Handler, 
 	}
 
 	ticker := time.NewTicker(cfg.PushInterval)
-
+	quit := make(chan struct{})
 	var err error
 	var client *monitoring.MetricClient
 	if client, err = b.createClient(cfg); err != nil {
@@ -191,8 +192,8 @@ func (b *builder) Build(ctx context.Context, env adapter.Env) (adapter.Handler, 
 		pushInterval:        cfg.PushInterval,
 		env:                 env,
 	}
-	// We hold on to the ref to the ticker so we can stop it later
-	buffered.start(env, ticker)
+	// We hold on to the ref to the ticker so we can stop it later and quit channel to exit the daemon.
+	buffered.start(env, ticker, quit)
 	h := &handler{
 		l:          env.Logger(),
 		now:        time.Now,
@@ -200,6 +201,7 @@ func (b *builder) Build(ctx context.Context, env adapter.Env) (adapter.Handler, 
 		md:         md,
 		metricInfo: types,
 		ticker:     ticker,
+		quit:       quit,
 	}
 	return h, nil
 }
@@ -266,6 +268,7 @@ func (h *handler) HandleMetric(_ context.Context, vals []*metric.Instance) error
 
 func (h *handler) Close() error {
 	h.ticker.Stop()
+	close(h.quit)
 	return h.client.Close()
 }
 
@@ -282,10 +285,11 @@ func toTypedVal(val interface{}, i info) *monitoringpb.TypedValue {
 	case labelpb.LabelDescriptor_BOOL:
 		return &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_BoolValue{BoolValue: val.(bool)}}
 	case labelpb.LabelDescriptor_INT64:
-		if t, ok := val.(time.Time); ok {
-			val = t.Nanosecond() / int(time.Microsecond)
-		} else if d, ok := val.(time.Duration); ok {
-			val = d.Nanoseconds() / int64(time.Microsecond)
+		switch v := val.(type) {
+		case time.Time:
+			val = v.Nanosecond() / int(time.Microsecond)
+		case time.Duration:
+			val = v.Nanoseconds() / int64(time.Microsecond)
 		}
 		return &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_Int64Value{Int64Value: val.(int64)}}
 	default:

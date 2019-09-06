@@ -1,4 +1,4 @@
-FROM    circleci/golang:1.11
+FROM    circleci/golang:1.12
 
 # The base circleci image runs as user 'circleci'(3434), with sudo capabilities.
 # Based on Debian9. Go installed in /usr/local/go
@@ -49,7 +49,7 @@ RUN     go get -u github.com/golang/dep/cmd/dep
 RUN     go get github.com/jstemmer/go-junit-report
 
 # Install fpm tool
-RUN  sudo apt-get -qqy install ruby ruby-dev rubygems build-essential autoconf libtool autotools-dev && \
+RUN  sudo apt-get -qqy install iptables ruby ruby-dev rubygems build-essential autoconf libtool autotools-dev && \
      sudo gem install --no-ri --no-rdoc fpm
 
 # Include minikube and kubectl in the image
@@ -58,6 +58,11 @@ RUN curl -Lo /tmp/kubectl https://storage.googleapis.com/kubernetes-release/rele
 
 RUN curl -Lo /tmp/minikube https://storage.googleapis.com/minikube/releases/${MINIKUBE_VER}/minikube-linux-amd64 &&\
     chmod +x /tmp/minikube && sudo mv /tmp/minikube /usr/local/bin/
+
+# Install libc++ (required by Proxy in release-1.1 and release-1.2).
+RUN echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main" | sudo tee /etc/apt/sources.list.d/llvm.list && \
+    curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - && \
+    sudo apt-get update && sudo apt-get -qqy install "libc++-8-dev" "libc++abi-8-dev"
 
 # Install helm
 RUN cd /tmp && \

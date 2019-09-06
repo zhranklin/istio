@@ -36,7 +36,7 @@ import (
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/features/pilot"
-	"istio.io/istio/pkg/log"
+	"istio.io/pkg/log"
 )
 
 const (
@@ -73,6 +73,16 @@ var ALPNInMesh = []string{"istio"}
 // ALPNHttp advertises that Proxy is going to talking either http2 or http 1.1.
 var ALPNHttp = []string{"h2", "http/1.1"}
 
+func getMaxCidrPrefix(addr string) uint32 {
+	ip := net.ParseIP(addr)
+	if ip.To4() == nil {
+		// ipv6 address
+		return 128
+	}
+	// ipv4 address
+	return 32
+}
+
 // ConvertAddressToCidr converts from string to CIDR proto
 func ConvertAddressToCidr(addr string) *core.CidrRange {
 	if len(addr) == 0 {
@@ -82,7 +92,7 @@ func ConvertAddressToCidr(addr string) *core.CidrRange {
 	cidr := &core.CidrRange{
 		AddressPrefix: addr,
 		PrefixLen: &types.UInt32Value{
-			Value: 32,
+			Value: getMaxCidrPrefix(addr),
 		},
 	}
 

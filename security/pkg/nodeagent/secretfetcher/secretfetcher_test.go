@@ -130,7 +130,7 @@ func TestSecretFetcher(t *testing.T) {
 		// Set fallback secret name but no such secret is created.
 		FallbackSecretName: "gateway-fallback",
 	}
-	gSecretFetcher.Init(fake.NewSimpleClientset().CoreV1())
+	gSecretFetcher.InitWithKubeClient(fake.NewSimpleClientset().CoreV1())
 	if gSecretFetcher.UseCaClient {
 		t.Error("secretFetcher should not use ca client")
 	}
@@ -216,7 +216,7 @@ func TestSecretFetcherInvalidSecret(t *testing.T) {
 		DeleteCache: func(secretName string) {},
 		UpdateCache: func(secretName string, ns model.SecretItem) {},
 	}
-	gSecretFetcher.Init(fake.NewSimpleClientset().CoreV1())
+	gSecretFetcher.InitWithKubeClient(fake.NewSimpleClientset().CoreV1())
 	if gSecretFetcher.UseCaClient {
 		t.Error("secretFetcher should not use ca client")
 	}
@@ -278,7 +278,7 @@ func TestSecretFetcherSkipSecret(t *testing.T) {
 		DeleteCache: func(secretName string) {},
 		UpdateCache: func(secretName string, ns model.SecretItem) {},
 	}
-	gSecretFetcher.Init(fake.NewSimpleClientset().CoreV1())
+	gSecretFetcher.InitWithKubeClient(fake.NewSimpleClientset().CoreV1())
 	if gSecretFetcher.UseCaClient {
 		t.Error("secretFetcher should not use ca client")
 	}
@@ -384,7 +384,7 @@ func TestSecretFetcherTlsSecretFormat(t *testing.T) {
 		DeleteCache: func(secretName string) {},
 		UpdateCache: func(secretName string, ns model.SecretItem) {},
 	}
-	gSecretFetcher.Init(fake.NewSimpleClientset().CoreV1())
+	gSecretFetcher.InitWithKubeClient(fake.NewSimpleClientset().CoreV1())
 	if gSecretFetcher.UseCaClient {
 		t.Error("secretFetcher should not use ca client")
 	}
@@ -463,7 +463,7 @@ func TestSecretFetcherUsingFallbackIngressSecret(t *testing.T) {
 		UpdateCache:        func(secretName string, ns model.SecretItem) {},
 		FallbackSecretName: k8sSecretFallbackScrt,
 	}
-	gSecretFetcher.Init(fake.NewSimpleClientset().CoreV1())
+	gSecretFetcher.InitWithKubeClient(fake.NewSimpleClientset().CoreV1())
 	if gSecretFetcher.UseCaClient {
 		t.Error("secretFetcher should not use ca client")
 	}

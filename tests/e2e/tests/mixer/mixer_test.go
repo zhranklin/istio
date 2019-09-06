@@ -37,20 +37,23 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 
-	"istio.io/istio/pkg/log"
 	"istio.io/istio/pkg/test/kube"
 	"istio.io/istio/tests/e2e/framework"
 	"istio.io/istio/tests/util"
+	"istio.io/pkg/log"
 )
 
 const (
-	bookinfoSampleDir     = "samples/bookinfo"
-	yamlExtension         = "yaml"
-	deploymentDir         = "platform/kube"
-	bookinfoYaml          = "bookinfo"
-	bookinfoRatingsv2Yaml = "bookinfo-ratings-v2"
-	bookinfoDbYaml        = "bookinfo-db"
-	sleepYaml             = "samples/sleep/sleep"
+	bookinfoSampleDir      = "samples/bookinfo"
+	yamlExtension          = "yaml"
+	deploymentDir          = "platform/kube"
+	bookinfoYaml           = "bookinfo"
+	bookinfoRatingsv2Yaml  = "bookinfo-ratings-v2"
+	bookinfoDbYaml         = "bookinfo-db"
+	sleepYaml              = "samples/sleep/sleep"
+	mixerPromAdapterConfig = "mixer/test/prometheus/prometheus-nosession"
+	mixerMetricTemplate    = "mixer/template/metric/template"
+	oopPromDeployment      = "samples/bookinfo/policy/prometheus-adapter-deployment"
 
 	prometheusPort   = uint16(9090)
 	mixerMetricsPort = uint16(42422)
@@ -97,6 +100,7 @@ var (
 	routeReviewsV3Rule           = "virtual-service-reviews-v3"
 	tcpDbRule                    = "virtual-service-ratings-db"
 	bookinfoGateway              = "bookinfo-gateway"
+	oopPromConfigs               = "prometheus-oop-rule"
 	faultInjectionNetworkingRule = "fault-injection-details-v1"
 
 	defaultRules []string
@@ -120,6 +124,8 @@ func (t *testConfig) Setup() (err error) {
 		*dr = filepath.Join(bookinfoSampleDir, networkingDir, *dr)
 		defaultRules = append(defaultRules, *dr)
 	}
+	// Append default metric template and prometheus adapter config for out of process adapter dynamic encoding
+	defaultRules = append(defaultRules, mixerPromAdapterConfig, mixerMetricTemplate)
 
 	rs := []*string{&rateLimitRule, &denialRule, &ingressDenialRule, &newTelemetryRule,
 		&kubeenvTelemetryRule}
@@ -131,6 +137,12 @@ func (t *testConfig) Setup() (err error) {
 	rs = []*string{&routeReviewsVersionsRule, &routeReviewsV3Rule, &tcpDbRule, &faultInjectionNetworkingRule}
 	for _, r := range rs {
 		*r = filepath.Join(bookinfoSampleDir, networkingDir, *r)
+		rules = append(rules, *r)
+	}
+
+	rs = []*string{&oopPromConfigs}
+	for _, r := range rs {
+		*r = filepath.Join(bookinfoSampleDir, policyDir, *r)
 		rules = append(rules, *r)
 	}
 
@@ -240,7 +252,7 @@ func applyRules(ruleKeys []string) error {
 	for _, ruleKey := range ruleKeys {
 		rule := getDestinationRulePath(tc, ruleKey)
 		if err := util.KubeApply(tc.Kube.Namespace, rule, tc.Kube.KubeConfig); err != nil {
-			//log.Errorf("Kubectl apply %s failed", rule)
+			log.Errorf("Kubectl apply %s failed", rule)
 			return err
 		}
 	}
@@ -314,16 +326,16 @@ func podLogs(labelSelector string, container string) {
 // portForward sets up local port forward to the pod specified by the "app" label
 func (p *promProxy) portForward(labelSelector string, localPort, remotePort uint16) error {
 	log.Infof("Setting up %s proxy", labelSelector)
-	options := &kube.PodSelectOptions{
-		PodNamespace:  p.namespace,
-		LabelSelector: labelSelector,
-	}
 	accessor, err := kube.NewAccessor(tc.Kube.KubeConfig, "")
 	if err != nil {
 		log.Errorf("Error creating accessor: %v", err)
 		return err
 	}
-	forwarder, err := accessor.NewPortForwarder(options, localPort, remotePort)
+	pod, err := accessor.FindPodBySelectors(p.namespace, labelSelector)
+	if err != nil {
+		log.Errorf("error finding pods: %v", err)
+	}
+	forwarder, err := accessor.NewPortForwarder(pod, localPort, remotePort)
 	if err != nil {
 		log.Errorf("Error creating port forwarder: %v", err)
 		return err
@@ -407,6 +419,10 @@ func setTestConfig() error {
 			AppYaml:    util.GetResourcePath(sleepYaml + "." + yamlExtension),
 			KubeInject: true,
 		},
+		{
+			AppYaml:    util.GetResourcePath(oopPromDeployment + "." + yamlExtension),
+			KubeInject: false,
+		},
 	}
 	for i := range demoApps {
 		tc.Kube.AppManager.AddApp(&demoApps[i])
@@ -429,16 +445,31 @@ func errorf(t *testing.T, format string, args ...interface{}) {
 }
 
 func TestMetric(t *testing.T) {
-	checkMetricReport(t, destLabel, fqdn("productpage"))
+	checkMetricReport(t, "istio_requests_total", destLabel, fqdn("productpage"))
 }
 
 func TestIngressMetric(t *testing.T) {
-	checkMetricReport(t, srcWorkloadLabel, "istio-"+ingressName)
+	checkMetricReport(t, "istio_requests_total", srcWorkloadLabel, "istio-"+ingressName)
+}
+
+func TestOOPMetric(t *testing.T) {
+	if err := applyMixerRule(oopPromConfigs); err != nil {
+		fatalf(t, "could not apply required out of process configs: %v", err)
+	}
+
+	defer func() {
+		if err := deleteMixerRule(oopPromConfigs); err != nil {
+			t.Logf("could not clear out of process config: %v", err)
+		}
+	}()
+	allowRuleSync()
+
+	checkMetricReport(t, "istio_request_count_oop", destLabel, fqdn("productpage"))
 }
 
 // checkMetricReport checks whether report works for the given service
 // by visiting productpage and comparing request_count metric.
-func checkMetricReport(t *testing.T, label, labelValue string) {
+func checkMetricReport(t *testing.T, name, label, labelValue string) {
 	// setup prometheus API
 	promAPI, err := promAPI()
 	if err != nil {
@@ -449,7 +480,7 @@ func checkMetricReport(t *testing.T, label, labelValue string) {
 
 	// establish baseline by querying request count metric.
 	t.Log("establishing metrics baseline for test...")
-	query := fmt.Sprintf("istio_requests_total{%s=\"%s\"}", label, labelValue)
+	query := fmt.Sprintf("%s{%s=\"%s\"}", name, label, labelValue)
 	t.Logf("prometheus query: %s", query)
 	value, err := promAPI.Query(context.Background(), query, time.Now())
 	if err != nil {
@@ -473,7 +504,7 @@ func checkMetricReport(t *testing.T, label, labelValue string) {
 
 	t.Log("Successfully sent request(s) to /productpage; checking metrics...")
 
-	query = fmt.Sprintf("istio_requests_total{%s=\"%s\",%s=\"200\"}", label, labelValue, responseCodeLabel)
+	query = fmt.Sprintf("%s{%s=\"%s\",%s=\"200\"}", name, label, labelValue, responseCodeLabel)
 	t.Logf("prometheus query: %s", query)
 	value, err = promAPI.Query(context.Background(), query, time.Now())
 	if err != nil {
@@ -726,8 +757,6 @@ func testDenials(t *testing.T, rule string) {
 
 // TestIngressCheckCache tests that check cache works in Ingress.
 func TestIngressCheckCache(t *testing.T) {
-	//t.Skip("https://github.com/istio/istio/issues/6309")
-
 	// Apply denial rule to istio-ingress, so that only request with ["x-user"] could go through.
 	// This is to make the test focus on ingress check cache.
 	t.Logf("block request through ingress if x-user header is john")
@@ -809,19 +838,29 @@ func testCheckCache(t *testing.T, visit func() error, app string) {
 		fatalf(t, "%v", err)
 	}
 
-	allowPrometheusSync()
-	t.Log("Query promethus to get new cache hits number...")
-	// Get new check cache hit.
-	got, err := getCheckCacheHits(promAPI, app)
-	if err != nil {
-		fatalf(t, "Unable to retrieve valid cached hit number: %v", err)
+	retry := util.Retrier{
+		BaseDelay: 10 * time.Second,
+		MaxDelay:  30 * time.Second,
+		Retries:   4,
 	}
-	t.Logf("New cache hits: %v", got)
 
-	// At least 1 call should be cache hit.
-	want := float64(1)
-	if (got - prior) < want {
-		errorf(t, "Check cache hit: %v is less than expected: %v", got-prior, want)
+	retryFn := func(_ context.Context, i int) error {
+		t.Helper()
+		t.Logf("Trying to query new check cache hit (attempt %d)...", i)
+		got, err := getCheckCacheHits(promAPI, app)
+		if err != nil {
+			errorf(t, "unable to retrieve valid cached hit number: %v", err)
+			return err
+		}
+		t.Logf("New cache hits: %v", got)
+		if got == prior {
+			return fmt.Errorf("got new check cache hit %v, want at least %v", got, prior+1)
+		}
+		return nil
+	}
+
+	if _, err := retry.Retry(context.Background(), retryFn); err != nil {
+		errorf(t, "check cache hit does not increase: %v", err)
 	}
 }
 
@@ -1055,7 +1094,7 @@ func TestMetricsAndRateLimitAndRulesAndBookinfo(t *testing.T) {
 	// Lenient calculation TODO: tighten/simplify
 	want429s = math.Floor(want429s * .25)
 
-	got429s = got429s - prior429s
+	got429s -= prior429s
 
 	t.Logf("Actual 429s: %f (%f rps)", got429s, got429s/actualDuration)
 
@@ -1070,7 +1109,7 @@ func TestMetricsAndRateLimitAndRulesAndBookinfo(t *testing.T) {
 		errorf(t, "Could not find successes value: %v", err)
 	}
 
-	got200s = got200s - prior200s
+	got200s -= prior200s
 
 	t.Logf("Actual 200s: %f (%f rps), expecting ~1 rps", got200s, got200s/actualDuration)
 
@@ -1126,12 +1165,6 @@ func logPolicyMetrics(t *testing.T, adapter, app string) {
 
 	t.Logf("istio-policy stats (from: '%s'):  envoy checkcache hit count: %f, grpc requests: %f (total: %f) ", app, envoyHits, requests, envoyHits+requests)
 	t.Logf("istio-policy stats (all requests): mixer checkcache hits: %f, adapter '%s' dispatches: %f", mixerCacheHits, adapter, dispatches)
-}
-
-// nolint: deadcode
-func mixerCheckCacheHits(promAPI v1.API) (float64, error) {
-	query := "sum(mixer_checkcache_cache_hits_total{job=\"istio-policy\"})"
-	return queryValue(promAPI, query)
 }
 
 func adapterDispatches(promAPI v1.API, adapter string) (float64, error) {
@@ -1449,6 +1482,7 @@ func doMixerRule(ruleName string, do kubeDo) error {
 		return fmt.Errorf("%s must contain %s so the it can replaced", rule, templateNamespace)
 	}
 	contents = strings.Replace(contents, templateNamespace, tc.Kube.Namespace, -1)
+	contents = strings.Replace(contents, "namespace: default", "namespace: "+tc.Kube.Namespace, -1)
 	return do(tc.Kube.Namespace, contents, tc.Kube.KubeConfig)
 }
 

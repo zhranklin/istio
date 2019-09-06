@@ -79,7 +79,6 @@ if [[ $HUB == *"istio-testing"* ]]; then
 fi
 
 setup_e2e_cluster
-
 if [[ "${ENABLE_ISTIO_CNI:-false}" == true ]]; then
    cni_run_daemon
 fi

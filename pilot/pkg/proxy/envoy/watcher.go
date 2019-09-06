@@ -25,7 +25,7 @@ import (
 
 	"github.com/howeyc/fsnotify"
 
-	"istio.io/istio/pkg/log"
+	"istio.io/pkg/log"
 )
 
 const (
@@ -151,7 +151,6 @@ func generateCertHash(h hash.Hash, certs []string) {
 		}
 		bs, err := ioutil.ReadFile(cert)
 		if err != nil {
-			// log.Warnf("failed to read file %q", filename)
 			continue
 		}
 		if _, err := h.Write(bs); err != nil {

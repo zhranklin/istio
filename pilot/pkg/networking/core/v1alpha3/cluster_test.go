@@ -16,6 +16,7 @@ package v1alpha3
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -302,7 +303,6 @@ func TestBuildGatewayClustersWithRingHashLb(t *testing.T) {
 	g.Expect(cluster.LbPolicy).To(Equal(apiv2.Cluster_RING_HASH))
 	g.Expect(cluster.GetRingHashLbConfig().GetMinimumRingSize().GetValue()).To(Equal(uint64(2)))
 	g.Expect(cluster.Name).To(Equal("outbound|8080||*.example.org"))
-	//g.Expect(cluster.Type).To(Equal(apiv2.Cluster_EDS))
 	g.Expect(cluster.ConnectTimeout).To(Equal(time.Duration(10000000001)))
 }
 
@@ -336,7 +336,6 @@ func TestBuildGatewayClustersWithRingHashLbDefaultMinRingSize(t *testing.T) {
 	g.Expect(cluster.LbPolicy).To(Equal(apiv2.Cluster_RING_HASH))
 	g.Expect(cluster.GetRingHashLbConfig().GetMinimumRingSize().GetValue()).To(Equal(uint64(1024)))
 	g.Expect(cluster.Name).To(Equal("outbound|8080||*.example.org"))
-	//g.Expect(cluster.Type).To(Equal(apiv2.Cluster_EDS))
 	g.Expect(cluster.ConnectTimeout).To(Equal(time.Duration(10000000001)))
 }
 
@@ -347,7 +346,6 @@ func newTestEnvironment(serviceDiscovery model.ServiceDiscovery, mesh meshconfig
 		ServiceDiscovery: serviceDiscovery,
 		IstioConfigStore: configStore,
 		Mesh:             &mesh,
-		MixerSAN:         []string{},
 	}
 
 	env.PushContext = model.NewPushContext()
@@ -587,8 +585,8 @@ func TestClusterMetadata(t *testing.T) {
 	destRule := &networking.DestinationRule{
 		Host: "*.example.org",
 		Subsets: []*networking.Subset{
-			&networking.Subset{Name: "Subset 1"},
-			&networking.Subset{Name: "Subset 2"},
+			{Name: "Subset 1"},
+			{Name: "Subset 2"},
 		},
 		TrafficPolicy: &networking.TrafficPolicy{
 			ConnectionPool: &networking.ConnectionPoolSettings{
@@ -880,4 +878,101 @@ func TestClusterDiscoveryTypeAndLbPolicyPassthrough(t *testing.T) {
 	g.Expect(clusters[0].LbPolicy).To(Equal(apiv2.Cluster_ORIGINAL_DST_LB))
 	g.Expect(clusters[0].GetClusterDiscoveryType()).To(Equal(&apiv2.Cluster_Type{Type: apiv2.Cluster_ORIGINAL_DST}))
 	g.Expect(clusters[0].EdsClusterConfig).To(BeNil())
+}
+
+func TestPassthroughClusterMaxConnections(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	configgen := NewConfigGenerator([]plugin.Plugin{})
+	serviceDiscovery := &fakes.ServiceDiscovery{}
+	env := newTestEnvironment(serviceDiscovery, testMesh)
+	proxy := &model.Proxy{}
+
+	clusters, err := configgen.BuildClusters(env, proxy, env.PushContext)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	for _, cluster := range clusters {
+		if cluster.Name == "PassthroughCluster" {
+			fmt.Println(cluster.CircuitBreakers)
+			g.Expect(cluster.CircuitBreakers).NotTo(BeNil())
+			g.Expect(cluster.CircuitBreakers.Thresholds[0].MaxConnections.Value).To(Equal(uint32(102400)))
+		}
+	}
+}
+
+func TestRedisProtocolClusterWithPassThroughResolution(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	configgen := NewConfigGenerator([]plugin.Plugin{})
+
+	proxy := &model.Proxy{}
+
+	serviceDiscovery := &fakes.ServiceDiscovery{}
+
+	servicePort := &model.Port{
+		Name:     "redis-port",
+		Port:     6379,
+		Protocol: model.ProtocolRedis,
+	}
+	service := &model.Service{
+		Hostname:    model.Hostname("redis.com"),
+		Address:     "1.1.1.1",
+		ClusterVIPs: make(map[string]string),
+		Ports:       model.PortList{servicePort},
+		Resolution:  model.Passthrough,
+	}
+
+	serviceDiscovery.ServicesReturns([]*model.Service{service}, nil)
+
+	env := newTestEnvironment(serviceDiscovery, testMesh)
+
+	clusters, err := configgen.BuildClusters(env, proxy, env.PushContext)
+	g.Expect(err).NotTo(HaveOccurred())
+	for _, cluster := range clusters {
+		if cluster.Name == "outbound|6379||redis.com" {
+			g.Expect(clusters[0].LbPolicy).To(Equal(apiv2.Cluster_ORIGINAL_DST_LB))
+			g.Expect(clusters[0].GetClusterDiscoveryType()).To(Equal(&apiv2.Cluster_Type{Type: apiv2.Cluster_ORIGINAL_DST}))
+		}
+	}
+}
+
+func TestRedisProtocolCluster(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	configgen := NewConfigGenerator([]plugin.Plugin{})
+
+	proxy := &model.Proxy{}
+
+	serviceDiscovery := &fakes.ServiceDiscovery{}
+
+	servicePort := &model.Port{
+		Name:     "redis-port",
+		Port:     6379,
+		Protocol: model.ProtocolRedis,
+	}
+	service := &model.Service{
+		Hostname:    model.Hostname("redis.com"),
+		Address:     "1.1.1.1",
+		ClusterVIPs: make(map[string]string),
+		Ports:       model.PortList{servicePort},
+		Resolution:  model.ClientSideLB,
+	}
+
+	serviceDiscovery.ServicesReturns([]*model.Service{service}, nil)
+
+	env := newTestEnvironment(serviceDiscovery, testMesh)
+
+	// enable redis filter to true
+	os.Setenv("PILOT_ENABLE_REDIS_FILTER", "true")
+
+	defer os.Unsetenv("PILOT_ENABLE_REDIS_FILTER")
+
+	clusters, err := configgen.BuildClusters(env, proxy, env.PushContext)
+	g.Expect(err).NotTo(HaveOccurred())
+	for _, cluster := range clusters {
+		if cluster.Name == "outbound|6379||redis.com" {
+			g.Expect(clusters[0].GetClusterDiscoveryType()).To(Equal(&apiv2.Cluster_Type{Type: apiv2.Cluster_EDS}))
+			g.Expect(cluster.LbPolicy).To(Equal(apiv2.Cluster_MAGLEV))
+		}
+	}
 }

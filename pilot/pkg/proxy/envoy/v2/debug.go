@@ -26,7 +26,7 @@ import (
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
 	networking_core "istio.io/istio/pilot/pkg/networking/core/v1alpha3"
-	authn_plugin "istio.io/istio/pilot/pkg/networking/plugin/authn"
+	authn_alpha1 "istio.io/istio/pilot/pkg/security/authn/v1alpha1"
 	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 )
@@ -69,6 +69,7 @@ func (s *DiscoveryServer) InitDebug(mux *http.ServeMux, sctl *aggregate.Controll
 type SyncStatus struct {
 	ProxyID         string `json:"proxy,omitempty"`
 	ProxyVersion    string `json:"proxy_version,omitempty"`
+	IstioVersion    string `json:"istio_version,omitempty"`
 	ClusterSent     string `json:"cluster_sent,omitempty"`
 	ClusterAcked    string `json:"cluster_acked,omitempty"`
 	ListenerSent    string `json:"listener_sent,omitempty"`
@@ -81,16 +82,18 @@ type SyncStatus struct {
 }
 
 // Syncz dumps the synchronization status of all Envoys connected to this Pilot instance
-func Syncz(w http.ResponseWriter, req *http.Request) {
+func Syncz(w http.ResponseWriter, _ *http.Request) {
 	syncz := []SyncStatus{}
 	adsClientsMutex.RLock()
 	for _, con := range adsClients {
 		con.mu.RLock()
 		if con.modelNode != nil {
 			proxyVersion, _ := con.modelNode.GetProxyVersion()
+			istioVersion, _ := con.modelNode.GetIstioVersion()
 			syncz = append(syncz, SyncStatus{
 				ProxyID:         con.modelNode.ID,
 				ProxyVersion:    proxyVersion,
+				IstioVersion:    istioVersion,
 				ClusterSent:     con.ClusterNonceSent,
 				ClusterAcked:    con.ClusterNonceAcked,
 				ListenerSent:    con.ListenerNonceSent,
@@ -112,7 +115,7 @@ func Syncz(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	w.Write(out)
+	_, _ = w.Write(out)
 }
 
 // registryz providees debug support for registry - adding and listing model items.
@@ -146,7 +149,7 @@ func (s *DiscoveryServer) endpointShardz(w http.ResponseWriter, req *http.Reques
 	s.mutex.RLock()
 	out, _ := json.MarshalIndent(s.EndpointShardsByService, " ", " ")
 	s.mutex.RUnlock()
-	w.Write(out)
+	_, _ = w.Write(out)
 }
 
 // Tracks info about workloads. Currently only K8S serviceregistry populates this, based
@@ -157,7 +160,7 @@ func (s *DiscoveryServer) workloadz(w http.ResponseWriter, req *http.Request) {
 	s.mutex.RLock()
 	out, _ := json.MarshalIndent(s.WorkloadsByID, " ", " ")
 	s.mutex.RUnlock()
-	w.Write(out)
+	_, _ = w.Write(out)
 }
 
 // Endpoint debugging
@@ -229,7 +232,9 @@ type authProtocol int
 const (
 	authnHTTP       authProtocol = 1
 	authnMTls       authProtocol = 2
-	authnPermissive authProtocol = authnHTTP | authnMTls
+	authnPermissive              = authnHTTP | authnMTls
+	authnCustomTLS  authProtocol = 4
+	authnCustomMTls authProtocol = 8
 )
 
 // Returns whether the given destination rule use (Istio) mutual TLS setting for given port.
@@ -240,8 +245,17 @@ func clientAuthProtocol(rule *networking.DestinationRule, port *model.Port) auth
 	}
 	_, _, _, tls := networking_core.SelectTrafficPolicyComponents(rule.TrafficPolicy, port)
 
-	if tls != nil && tls.Mode == networking.TLSSettings_ISTIO_MUTUAL {
-		return authnMTls
+	if tls != nil {
+		switch tls.Mode {
+		case networking.TLSSettings_ISTIO_MUTUAL:
+			return authnMTls
+		case networking.TLSSettings_SIMPLE:
+			return authnCustomTLS
+		case networking.TLSSettings_MUTUAL:
+			return authnCustomMTls
+		case networking.TLSSettings_DISABLE:
+			return authnHTTP
+		}
 	}
 	return authnHTTP
 }
@@ -282,6 +296,10 @@ func authProtocolToString(protocol authProtocol) string {
 		return "mTLS"
 	case authnPermissive:
 		return "HTTP/mTLS"
+	case authnCustomTLS:
+		return "TLS"
+	case authnCustomMTls:
+		return "custom mTLS"
 	default:
 		return "UNKNOWN"
 	}
@@ -322,12 +340,13 @@ func (s *DiscoveryServer) authenticationz(w http.ResponseWriter, req *http.Reque
 				Host: string(ss.Hostname),
 				Port: p.Port,
 			}
-			authnConfig := s.Env.IstioConfigStore.AuthenticationPolicyByDestination(ss, p)
+			// TODO: support querying with labels.
+			authnConfig := s.Env.IstioConfigStore.AuthenticationPolicyForWorkload(ss, nil, p)
 			info.AuthenticationPolicyName = configName(authnConfig)
 			var serverProtocol, clientProtocol authProtocol
 			if authnConfig != nil {
 				policy := authnConfig.Spec.(*authn.Policy)
-				mtls := authn_plugin.GetMutualTLS(policy)
+				mtls := authn_alpha1.GetMutualTLS(policy)
 				serverProtocol = getServerAuthProtocol(mtls)
 			} else {
 				serverProtocol = getServerAuthProtocol(nil)
@@ -345,7 +364,11 @@ func (s *DiscoveryServer) authenticationz(w http.ResponseWriter, req *http.Reque
 			info.ClientProtocol = authProtocolToString(clientProtocol)
 
 			if (clientProtocol & serverProtocol) == 0 {
-				info.TLSConflictStatus = "CONFLICT"
+				if clientProtocol == authnCustomMTls && serverProtocol != authnHTTP {
+					info.TLSConflictStatus = "MAY CONFLICT"
+				} else {
+					info.TLSConflictStatus = "CONFLICT"
+				}
 			} else {
 				info.TLSConflictStatus = "OK"
 			}
@@ -383,7 +406,7 @@ func (s *DiscoveryServer) ConfigDump(w http.ResponseWriter, req *http.Request) {
 		connections, ok := adsSidecarIDConnectionsMap[proxyID]
 		if !ok || len(connections) == 0 {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Proxy not connected to this Pilot instance"))
+			_, _ = w.Write([]byte("Proxy not connected to this Pilot instance"))
 			return
 		}
 
@@ -397,19 +420,19 @@ func (s *DiscoveryServer) ConfigDump(w http.ResponseWriter, req *http.Request) {
 		dump, err := s.configDump(connections[mostRecent])
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 		if err := jsonm.Marshal(w, dump); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte("You must provide a proxyID in the query string"))
+	_, _ = w.Write([]byte("You must provide a proxyID in the query string"))
 }
 
 // PushStatusHandler dumps the last PushContext
@@ -424,7 +447,8 @@ func (s *DiscoveryServer) PushStatusHandler(w http.ResponseWriter, req *http.Req
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	w.Write(out)
+
+	_, _ = w.Write(out)
 }
 
 func writeAllADS(w io.Writer) {
