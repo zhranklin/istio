@@ -20,23 +20,27 @@ import (
 	"testing"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	xds "github.com/envoyproxy/go-control-plane/pkg/server"
-	"github.com/envoyproxy/go-control-plane/pkg/util"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+
 	"google.golang.org/grpc"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
+
 	"istio.io/istio/mixer/test/client/env"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	pilotutil "istio.io/istio/pilot/pkg/networking/util"
+	"istio.io/istio/pkg/config/host"
+	"istio.io/istio/pkg/config/labels"
 	"istio.io/istio/pkg/proto"
 )
 
@@ -280,7 +284,7 @@ func TestPilotPlugin(t *testing.T) {
 	}
 
 	snapshots := cache.NewSnapshotCache(true, mock{}, nil)
-	snapshots.SetSnapshot(id, makeSnapshot(s, t))
+	_ = snapshots.SetSnapshot(id, makeSnapshot(s, t))
 	server := xds.NewServer(snapshots, nil)
 	discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
 	go func() {
@@ -312,17 +316,17 @@ func (mock) ID(*core.Node) string {
 func (mock) GetProxyServiceInstances(_ *model.Proxy) ([]*model.ServiceInstance, error) {
 	return nil, nil
 }
-func (mock) GetProxyWorkloadLabels(proxy *model.Proxy) (model.LabelsCollection, error) {
+func (mock) GetProxyWorkloadLabels(proxy *model.Proxy) (labels.Collection, error) {
 	return nil, nil
 }
-func (mock) GetService(_ model.Hostname) (*model.Service, error) { return nil, nil }
-func (mock) InstancesByPort(_ model.Hostname, _ int, _ model.LabelsCollection) ([]*model.ServiceInstance, error) {
+func (mock) GetService(_ host.Name) (*model.Service, error) { return nil, nil }
+func (mock) InstancesByPort(_ *model.Service, _ int, _ labels.Collection) ([]*model.ServiceInstance, error) {
 	return nil, nil
 }
-func (mock) ManagementPorts(_ string) model.PortList                               { return nil }
-func (mock) Services() ([]*model.Service, error)                                   { return nil, nil }
-func (mock) WorkloadHealthCheckInfo(_ string) model.ProbeList                      { return nil }
-func (mock) GetIstioServiceAccounts(hostname model.Hostname, ports []int) []string { return nil }
+func (mock) ManagementPorts(_ string) model.PortList                        { return nil }
+func (mock) Services() ([]*model.Service, error)                            { return nil, nil }
+func (mock) WorkloadHealthCheckInfo(_ string) model.ProbeList               { return nil }
+func (mock) GetIstioServiceAccounts(_ *model.Service, ports []int) []string { return nil }
 
 const (
 	id = "id"
@@ -346,16 +350,19 @@ var (
 		ServiceDiscovery: mock{},
 	}
 	pushContext = model.PushContext{
-		ServiceByHostname: map[model.Hostname]*model.Service{
-			model.Hostname("svc.ns3"): &svc,
+		ServiceByHostnameAndNamespace: map[host.Name]map[string]*model.Service{
+			host.Name("svc.ns3"): {
+				"ns3": &svc,
+			},
 		},
 	}
 	serverParams = plugin.InputParams{
 		ListenerProtocol: plugin.ListenerProtocolHTTP,
 		Env:              mesh,
 		Node: &model.Proxy{
-			ID:   "pod1.ns2",
-			Type: model.SidecarProxy,
+			ID:       "pod1.ns2",
+			Type:     model.SidecarProxy,
+			Metadata: &model.NodeMetadata{},
 		},
 		ServiceInstance: &model.ServiceInstance{Service: &svc},
 		Push:            &pushContext,
@@ -364,8 +371,9 @@ var (
 		ListenerProtocol: plugin.ListenerProtocolHTTP,
 		Env:              mesh,
 		Node: &model.Proxy{
-			ID:   "pod2.ns2",
-			Type: model.SidecarProxy,
+			ID:       "pod2.ns2",
+			Type:     model.SidecarProxy,
+			Metadata: &model.NodeMetadata{},
 		},
 		Service: &svc,
 		Push:    &pushContext,
@@ -375,11 +383,11 @@ var (
 func makeRoute(cluster string) *v2.RouteConfiguration {
 	return &v2.RouteConfiguration{
 		Name: cluster,
-		VirtualHosts: []route.VirtualHost{{
+		VirtualHosts: []*route.VirtualHost{{
 			Name:    cluster,
 			Domains: []string{"*"},
-			Routes: []route.Route{{
-				Match: route.RouteMatch{PathSpecifier: &route.RouteMatch_Prefix{Prefix: "/"}},
+			Routes: []*route.Route{{
+				Match: &route.RouteMatch{PathSpecifier: &route.RouteMatch_Prefix{Prefix: "/"}},
 				Action: &route.Route_Route{Route: &route.RouteAction{
 					ClusterSpecifier: &route.RouteAction_Cluster{Cluster: cluster},
 				}},
@@ -391,21 +399,21 @@ func makeRoute(cluster string) *v2.RouteConfiguration {
 func makeListener(port uint16, route string) (*v2.Listener, *hcm.HttpConnectionManager) {
 	return &v2.Listener{
 			Name: route,
-			Address: core.Address{Address: &core.Address_SocketAddress{SocketAddress: &core.SocketAddress{
+			Address: &core.Address{Address: &core.Address_SocketAddress{SocketAddress: &core.SocketAddress{
 				Address:       "127.0.0.1",
 				PortSpecifier: &core.SocketAddress_PortValue{PortValue: uint32(port)}}}},
-			ListenerFilters: []listener.ListenerFilter{{
+			ListenerFilters: []*listener.ListenerFilter{{
 				Name: "envoy.listener.tls_inspector",
 			}},
 		}, &hcm.HttpConnectionManager{
-			CodecType:  hcm.AUTO,
+			CodecType:  hcm.HttpConnectionManager_AUTO,
 			StatPrefix: route,
 			RouteSpecifier: &hcm.HttpConnectionManager_Rds{
-				Rds: &hcm.Rds{RouteConfigName: route, ConfigSource: core.ConfigSource{
+				Rds: &hcm.Rds{RouteConfigName: route, ConfigSource: &core.ConfigSource{
 					ConfigSourceSpecifier: &core.ConfigSource_Ads{Ads: &core.AggregatedConfigSource{}},
 				}},
 			},
-			HttpFilters: []*hcm.HttpFilter{{Name: util.Router}},
+			HttpFilters: []*hcm.HttpFilter{{Name: wellknown.Router}},
 		}
 }
 
@@ -422,9 +430,9 @@ func makeSnapshot(s *env.TestSetup, t *testing.T) cache.Snapshot {
 		t.Error(err)
 	}
 	serverManager.HttpFilters = append(serverMutable.FilterChains[0].HTTP, serverManager.HttpFilters...)
-	serverListener.FilterChains = []listener.FilterChain{{
-		Filters: []listener.Filter{{
-			Name:       util.HTTPConnectionManager,
+	serverListener.FilterChains = []*listener.FilterChain{{
+		Filters: []*listener.Filter{{
+			Name:       wellknown.HTTPConnectionManager,
 			ConfigType: &listener.Filter_TypedConfig{TypedConfig: pilotutil.MessageToAny(serverManager)},
 		}},
 		// turn on mTLS on downstream
@@ -449,8 +457,8 @@ func makeSnapshot(s *env.TestSetup, t *testing.T) cache.Snapshot {
 		t.Error(err)
 	}
 	clientManager.HttpFilters = append(clientMutable.FilterChains[0].HTTP, clientManager.HttpFilters...)
-	clientListener.FilterChains = []listener.FilterChain{{Filters: []listener.Filter{{
-		Name:       util.HTTPConnectionManager,
+	clientListener.FilterChains = []*listener.FilterChain{{Filters: []*listener.Filter{{
+		Name:       wellknown.HTTPConnectionManager,
 		ConfigType: &listener.Filter_TypedConfig{TypedConfig: pilotutil.MessageToAny(clientManager)},
 	}}}}
 

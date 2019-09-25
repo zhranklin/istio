@@ -19,12 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/types"
+	"github.com/golang/protobuf/ptypes"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
-	mccpb "istio.io/api/mixer/v1/config/client"
+
 	"istio.io/istio/pilot/pkg/model"
-	context "istio.io/istio/pilot/pkg/model"
+	mccpb "istio.io/istio/pilot/pkg/networking/plugin/mixer/client"
+	"istio.io/istio/pkg/config/mesh"
 )
 
 func TestTransportConfig(t *testing.T) {
@@ -35,12 +36,10 @@ func TestTransportConfig(t *testing.T) {
 	}{
 		{
 			// defaults set
-			mesh: context.DefaultMeshConfig(),
-			node: model.Proxy{
-				Metadata: map[string]string{},
-			},
+			mesh: mesh.DefaultMeshConfig(),
+			node: model.Proxy{Metadata: &model.NodeMetadata{}},
 			expect: &mccpb.NetworkFailPolicy{
-				Policy:        mccpb.FAIL_CLOSE,
+				Policy:        mccpb.NetworkFailPolicy_FAIL_CLOSE,
 				MaxRetry:      defaultRetries,
 				BaseRetryWait: defaultBaseRetryWaitTime,
 				MaxRetryWait:  defaultMaxRetryWaitTime,
@@ -48,31 +47,31 @@ func TestTransportConfig(t *testing.T) {
 		},
 		{
 			// retry and retry times set
-			mesh: context.DefaultMeshConfig(),
+			mesh: mesh.DefaultMeshConfig(),
 			node: model.Proxy{
-				Metadata: map[string]string{
-					model.NodeMetadataPolicyCheckRetries:           "5",
-					model.NodeMetadataPolicyCheckBaseRetryWaitTime: "1m",
-					model.NodeMetadataPolicyCheckMaxRetryWaitTime:  "1.5s",
+				Metadata: &model.NodeMetadata{
+					PolicyCheckRetries:           "5",
+					PolicyCheckBaseRetryWaitTime: "1m",
+					PolicyCheckMaxRetryWaitTime:  "1.5s",
 				},
 			},
 			expect: &mccpb.NetworkFailPolicy{
-				Policy:        mccpb.FAIL_CLOSE,
+				Policy:        mccpb.NetworkFailPolicy_FAIL_CLOSE,
 				MaxRetry:      5,
-				BaseRetryWait: types.DurationProto(1 * time.Minute),
-				MaxRetryWait:  types.DurationProto(1500 * time.Millisecond),
+				BaseRetryWait: ptypes.DurationProto(1 * time.Minute),
+				MaxRetryWait:  ptypes.DurationProto(1500 * time.Millisecond),
 			},
 		},
 		{
 			// just retry amount set
-			mesh: context.DefaultMeshConfig(),
+			mesh: mesh.DefaultMeshConfig(),
 			node: model.Proxy{
-				Metadata: map[string]string{
-					model.NodeMetadataPolicyCheckRetries: "1",
+				Metadata: &model.NodeMetadata{
+					PolicyCheckRetries: "1",
 				},
 			},
 			expect: &mccpb.NetworkFailPolicy{
-				Policy:        mccpb.FAIL_CLOSE,
+				Policy:        mccpb.NetworkFailPolicy_FAIL_CLOSE,
 				MaxRetry:      1,
 				BaseRetryWait: defaultBaseRetryWaitTime,
 				MaxRetryWait:  defaultMaxRetryWaitTime,
@@ -80,14 +79,14 @@ func TestTransportConfig(t *testing.T) {
 		},
 		{
 			// fail open from node metadata
-			mesh: context.DefaultMeshConfig(),
+			mesh: mesh.DefaultMeshConfig(),
 			node: model.Proxy{
-				Metadata: map[string]string{
-					model.NodeMetadataPolicyCheck: policyCheckDisable,
+				Metadata: &model.NodeMetadata{
+					PolicyCheck: policyCheckDisable,
 				},
 			},
 			expect: &mccpb.NetworkFailPolicy{
-				Policy:        mccpb.FAIL_OPEN,
+				Policy:        mccpb.NetworkFailPolicy_FAIL_OPEN,
 				MaxRetry:      defaultRetries,
 				BaseRetryWait: defaultBaseRetryWaitTime,
 				MaxRetryWait:  defaultMaxRetryWaitTime,
@@ -99,5 +98,34 @@ func TestTransportConfig(t *testing.T) {
 		if !reflect.DeepEqual(tc.NetworkFailPolicy, c.expect) {
 			t.Errorf("got %v, expected %v", tc.NetworkFailPolicy, c.expect)
 		}
+	}
+}
+
+func Test_proxyVersionToString(t *testing.T) {
+	type args struct {
+		ver *model.IstioVersion
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "major.minor.patch",
+			args: args{ver: &model.IstioVersion{Major: 1, Minor: 2, Patch: 0}},
+			want: "1.2.0",
+		},
+		{
+			name: "max",
+			args: args{ver: model.MaxIstioVersion},
+			want: "65535.65535.65535",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := proxyVersionToString(tt.args.ver); got != tt.want {
+				t.Errorf("proxyVersionToString(ver) = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

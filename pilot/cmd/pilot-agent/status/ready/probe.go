@@ -16,23 +16,23 @@ package ready
 
 import (
 	"fmt"
-
-	"github.com/hashicorp/go-multierror"
-
-	"istio.io/istio/pilot/pkg/model"
+	"net"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v2alpha"
+	"github.com/hashicorp/go-multierror"
 
 	"istio.io/istio/pilot/cmd/pilot-agent/status/util"
+	"istio.io/istio/pilot/pkg/model"
 )
 
 // Probe for readiness.
 type Probe struct {
+	ApplicationPorts    []uint16
 	LocalHostAddr       string
+	NodeType            model.NodeType
 	AdminPort           uint16
 	receivedFirstUpdate bool
-	ApplicationPorts    []uint16
-	NodeType            model.NodeType
+	listenersBound      bool
 }
 
 // Check executes the probe and returns an error if the probe fails.
@@ -42,16 +42,19 @@ func (p *Probe) Check() error {
 		return err
 	}
 
-	// Envoy has received some configuration, make sure that configuration has been received for
-	// all inbound ports.
-	if err := p.checkInboundConfigured(); err != nil {
-		return err
+	// Envoy has received some listener configuration, make sure that configuration has been received for
+	// any of the inbound ports.
+	if p.NodeType == model.Router {
+		if err := p.checkInboundConfigured(); err != nil {
+			return err
+		}
 	}
 
-	return p.checkServerInfo()
+	return p.isEnvoyReady()
 }
 
 // checkApplicationPorts verifies that Envoy has received configuration for all ports exposed by the application container.
+// Notes it is used only by envoy in Router mode.
 func (p *Probe) checkInboundConfigured() error {
 	if len(p.ApplicationPorts) > 0 {
 		listeningPorts, listeners, err := util.GetInboundListeningPorts(p.LocalHostAddr, p.AdminPort, p.NodeType)
@@ -59,16 +62,9 @@ func (p *Probe) checkInboundConfigured() error {
 			return err
 		}
 
-		// Only those container ports exposed through the service receive a configuration from Pilot. Since we don't know
-		// which ports are defined by the service, just ensure that at least one container port has a cluster/listener
-		// configuration in Envoy. The CDS/LDS updates will contain everything, so just ensuring at least one port has
-		// been configured should be sufficient.
+		// The CDS/LDS updates will contain everything, so just ensuring at least one port has been configured
+		// should be sufficient. The full check is mainly to provide a full inspection.
 		for _, appPort := range p.ApplicationPorts {
-			if listeningPorts[appPort] && p.NodeType != model.Router {
-				// Success - Envoy is configured.
-				// For gateways we should check for all ports though, so don't return success yet.
-				return nil
-			}
 			if !listeningPorts[appPort] {
 				err = multierror.Append(err, fmt.Errorf("envoy missing listener for inbound application port: %d", appPort))
 			}
@@ -101,6 +97,16 @@ func (p *Probe) checkUpdated() error {
 	return fmt.Errorf("config not received from Pilot (is Pilot running?): %s", s.String())
 }
 
+func (p *Probe) isEnvoyReady() error {
+	if se := p.checkServerInfo(); se != nil {
+		return se
+	}
+	if pe := p.pingVirtualListeners(); pe != nil {
+		return pe
+	}
+	return nil
+}
+
 // checkServerInfo checks to ensure that Envoy is in the READY state
 func (p *Probe) checkServerInfo() error {
 	info, err := util.GetServerInfo(p.LocalHostAddr, p.AdminPort)
@@ -110,6 +116,32 @@ func (p *Probe) checkServerInfo() error {
 
 	if info.GetState() != admin.ServerInfo_LIVE {
 		return fmt.Errorf("server is not live, current state is: %v", info.GetState().String())
+	}
+
+	return nil
+}
+
+// pingVirtualListeners checks to ensure that Envoy is actually listenening on the port.
+func (p *Probe) pingVirtualListeners() error {
+
+	if p.listenersBound {
+		return nil
+	}
+
+	// Check if traffic capture ports are actually listening.
+	vports, err := util.GetVirtualListenerPorts(p.LocalHostAddr, p.AdminPort)
+	if err != nil {
+		return err
+	}
+	for _, vport := range vports {
+		con, err := net.Dial("tcp", fmt.Sprintf("%s:%d", p.LocalHostAddr, vport))
+		if err != nil {
+			return fmt.Errorf("listener on port %d is still not listening: %v", vport, err)
+		}
+		p.listenersBound = true
+		if con != nil {
+			con.Close()
+		}
 	}
 
 	return nil

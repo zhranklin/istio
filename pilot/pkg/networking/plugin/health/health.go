@@ -19,10 +19,10 @@ import (
 	"reflect"
 
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	envoy_api_v2_route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	hcfilter "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/health_check/v2"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
-	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
+	xdsutil "github.com/envoyproxy/go-control-plane/pkg/wellknown"
 
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/plugin"
@@ -42,10 +42,10 @@ func NewPlugin() plugin.Plugin {
 func buildHealthCheckFilter(probe *model.Probe, isXDSMarshalingToAnyEnabled bool) *http_conn.HttpFilter {
 	config := &hcfilter.HealthCheck{
 		PassThroughMode: proto.BoolTrue,
-		Headers: []*envoy_api_v2_route.HeaderMatcher{
+		Headers: []*route.HeaderMatcher{
 			{
 				Name:                 ":path",
-				HeaderMatchSpecifier: &envoy_api_v2_route.HeaderMatcher_ExactMatch{ExactMatch: probe.Path},
+				HeaderMatchSpecifier: &route.HeaderMatcher_ExactMatch{ExactMatch: probe.Path},
 			},
 		},
 	}
@@ -119,7 +119,7 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 	isXDSMarshalingToAnyEnabled := util.IsXDSMarshalingToAnyEnabled(in.Node)
 
 	for i := range mutable.Listener.FilterChains {
-		if in.ListenerProtocol == plugin.ListenerProtocolHTTP {
+		if mutable.FilterChains[i].ListenerProtocol == plugin.ListenerProtocolHTTP {
 			for _, ip := range in.Node.IPAddresses {
 				buildHealthCheckFilters(&mutable.FilterChains[i], in.Env.WorkloadHealthCheckInfo(ip),
 					&in.ServiceInstance.Endpoint, isXDSMarshalingToAnyEnabled)
@@ -127,6 +127,11 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		}
 	}
 
+	return nil
+}
+
+// OnVirtualListener implments the Plugin interface method.
+func (Plugin) OnVirtualListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 	return nil
 }
 

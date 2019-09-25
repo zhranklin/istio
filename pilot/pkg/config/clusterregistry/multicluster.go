@@ -105,8 +105,9 @@ func (m *Multicluster) AddMemberCluster(clientset kubernetes.Interface, clusterI
 
 	m.remoteKubeControllers[clusterID] = &remoteKubeController
 	m.m.Unlock()
-	_ = kubectl.AppendServiceHandler(func(*model.Service, model.Event) { m.XDSUpdater.ConfigUpdate(true) })
-	_ = kubectl.AppendInstanceHandler(func(*model.ServiceInstance, model.Event) { m.XDSUpdater.ConfigUpdate(true) })
+
+	_ = kubectl.AppendServiceHandler(func(*model.Service, model.Event) { m.updateHandler() })
+	_ = kubectl.AppendInstanceHandler(func(*model.ServiceInstance, model.Event) { m.updateHandler() })
 	go kubectl.Run(stopCh)
 	return nil
 }
@@ -126,8 +127,27 @@ func (m *Multicluster) DeleteMemberCluster(clusterID string) error {
 	close(m.remoteKubeControllers[clusterID].stopCh)
 	delete(m.remoteKubeControllers, clusterID)
 	if m.XDSUpdater != nil {
-		m.XDSUpdater.ConfigUpdate(true)
+		m.XDSUpdater.ConfigUpdate(&model.PushRequest{Full: true})
 	}
 
 	return nil
+}
+
+// Hot reload mesh networks for remote clusters
+func (m *Multicluster) ReloadNetworkLookup(meshNetworks *meshconfig.MeshNetworks) {
+	m.m.Lock()
+	defer m.m.Unlock()
+
+	m.meshNetworks = meshNetworks
+	for _, controller := range m.remoteKubeControllers {
+		if controller != nil && controller.rc != nil {
+			controller.rc.InitNetworkLookup(meshNetworks)
+		}
+	}
+}
+
+func (m *Multicluster) updateHandler() {
+	if m.XDSUpdater != nil {
+		m.XDSUpdater.ConfigUpdate(&model.PushRequest{Full: true})
+	}
 }

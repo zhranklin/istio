@@ -20,21 +20,25 @@ import (
 	"testing"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	xds "github.com/envoyproxy/go-control-plane/pkg/server"
-	"github.com/envoyproxy/go-control-plane/pkg/util"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+
 	"google.golang.org/grpc"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
+
 	"istio.io/istio/mixer/test/client/env"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pilot/pkg/networking/plugin/mixer"
 	pilotutil "istio.io/istio/pilot/pkg/networking/util"
+	"istio.io/istio/pkg/config/host"
+	"istio.io/istio/pkg/config/labels"
 )
 
 const envoyConf = `
@@ -101,6 +105,7 @@ const (
   "context.protocol": "tcp",
   "context.reporter.kind": "outbound",
   "context.reporter.uid": "kubernetes://pod2.ns2",
+  "context.proxy_version": "1.1.1",
   "context.time": "*",
   "destination.service.host": "svc.ns3",
   "destination.service.name": "svc",
@@ -119,6 +124,7 @@ const (
   "context.protocol": "tcp",
   "context.reporter.kind": "inbound",
   "context.reporter.uid": "kubernetes://pod1.ns1",
+  "context.proxy_version": "1.1.1",
   "context.time": "*",
   "destination.ip": "[0 0 0 0 0 0 0 0 0 0 255 255 127 0 0 1]",
   "destination.port": "*",
@@ -139,7 +145,7 @@ func TestPilotPluginTCP(t *testing.T) {
 	}
 
 	snapshots := cache.NewSnapshotCache(true, mock{}, nil)
-	snapshots.SetSnapshot(id, makeSnapshot(s, t, model.SidecarProxy))
+	_ = snapshots.SetSnapshot(id, makeSnapshot(s, t, model.SidecarProxy))
 	server := xds.NewServer(snapshots, nil)
 	discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
 	go func() {
@@ -161,7 +167,7 @@ func TestPilotPluginTCP(t *testing.T) {
 	s.VerifyCheck("tcp-inbound", checkAttributesOkInbound)
 
 	// force a client-side policy check at ingress node type
-	snapshots.SetSnapshot(id, makeSnapshot(s, t, model.Router))
+	_ = snapshots.SetSnapshot(id, makeSnapshot(s, t, model.Router))
 	s.WaitEnvoyReady()
 	if _, _, err := env.HTTPGet(fmt.Sprintf("http://localhost:%d/echo", s.Ports().ClientProxyPort)); err != nil {
 		t.Errorf("Failed in request: %v", err)
@@ -180,17 +186,17 @@ func (mock) ID(*core.Node) string {
 func (mock) GetProxyServiceInstances(_ *model.Proxy) ([]*model.ServiceInstance, error) {
 	return nil, nil
 }
-func (mock) GetProxyWorkloadLabels(proxy *model.Proxy) (model.LabelsCollection, error) {
+func (mock) GetProxyWorkloadLabels(proxy *model.Proxy) (labels.Collection, error) {
 	return nil, nil
 }
-func (mock) GetService(_ model.Hostname) (*model.Service, error) { return nil, nil }
-func (mock) InstancesByPort(_ model.Hostname, _ int, _ model.LabelsCollection) ([]*model.ServiceInstance, error) {
+func (mock) GetService(_ host.Name) (*model.Service, error) { return nil, nil }
+func (mock) InstancesByPort(_ *model.Service, _ int, _ labels.Collection) ([]*model.ServiceInstance, error) {
 	return nil, nil
 }
-func (mock) ManagementPorts(_ string) model.PortList                               { return nil }
-func (mock) Services() ([]*model.Service, error)                                   { return nil, nil }
-func (mock) WorkloadHealthCheckInfo(_ string) model.ProbeList                      { return nil }
-func (mock) GetIstioServiceAccounts(hostname model.Hostname, ports []int) []string { return nil }
+func (mock) ManagementPorts(_ string) model.PortList                        { return nil }
+func (mock) Services() ([]*model.Service, error)                            { return nil, nil }
+func (mock) WorkloadHealthCheckInfo(_ string) model.ProbeList               { return nil }
+func (mock) GetIstioServiceAccounts(_ *model.Service, ports []int) []string { return nil }
 
 const (
 	id = "id"
@@ -213,8 +219,10 @@ var (
 		ServiceDiscovery: mock{},
 	}
 	pushContext = model.PushContext{
-		ServiceByHostname: map[model.Hostname]*model.Service{
-			model.Hostname("svc.ns3"): &svc,
+		ServiceByHostnameAndNamespace: map[host.Name]map[string]*model.Service{
+			host.Name("svc.ns3"): {
+				"ns3": &svc,
+			},
 		},
 	}
 )
@@ -222,11 +230,11 @@ var (
 func makeListener(port uint16, cluster string) *v2.Listener {
 	return &v2.Listener{
 		Name: cluster,
-		Address: core.Address{Address: &core.Address_SocketAddress{SocketAddress: &core.SocketAddress{
+		Address: &core.Address{Address: &core.Address_SocketAddress{SocketAddress: &core.SocketAddress{
 			Address:       "127.0.0.1",
 			PortSpecifier: &core.SocketAddress_PortValue{PortValue: uint32(port)}}}},
-		FilterChains: []listener.FilterChain{{Filters: []listener.Filter{{
-			Name: util.TCPProxy,
+		FilterChains: []*listener.FilterChain{{Filters: []*listener.Filter{{
+			Name: wellknown.TCPProxy,
 			ConfigType: &listener.Filter_TypedConfig{
 				TypedConfig: pilotutil.MessageToAny(&tcp_proxy.TcpProxy{
 					StatPrefix:       "tcp",
@@ -247,8 +255,10 @@ func makeSnapshot(s *env.TestSetup, t *testing.T, node model.NodeType) cache.Sna
 		ListenerProtocol: plugin.ListenerProtocolTCP,
 		Env:              mesh,
 		Node: &model.Proxy{
-			ID:   "pod1.ns1",
-			Type: node,
+			ID:           "pod1.ns1",
+			Type:         node,
+			IstioVersion: &model.IstioVersion{Major: 1, Minor: 1, Patch: 1},
+			Metadata:     &model.NodeMetadata{},
 		},
 		ServiceInstance: &model.ServiceInstance{Service: &svc},
 		Push:            &pushContext,
@@ -257,8 +267,10 @@ func makeSnapshot(s *env.TestSetup, t *testing.T, node model.NodeType) cache.Sna
 		ListenerProtocol: plugin.ListenerProtocolTCP,
 		Env:              mesh,
 		Node: &model.Proxy{
-			ID:   "pod2.ns2",
-			Type: node,
+			ID:           "pod2.ns2",
+			Type:         node,
+			IstioVersion: &model.IstioVersion{Major: 1, Minor: 1, Patch: 1},
+			Metadata:     &model.NodeMetadata{},
 		},
 		Service: &svc,
 		Push:    &pushContext,

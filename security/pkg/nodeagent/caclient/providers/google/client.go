@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -27,6 +28,7 @@ import (
 
 	caClientInterface "istio.io/istio/security/pkg/nodeagent/caclient/interface"
 	gcapb "istio.io/istio/security/proto/providers/google"
+	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 )
 
@@ -34,12 +36,13 @@ const bearerTokenPrefix = "Bearer "
 
 var (
 	googleCAClientLog = log.RegisterScope("googleCAClientLog", "Google CA client debugging", 0)
+	gkeClusterURL     = env.RegisterStringVar("GKE_CLUSTER_URL", "", "The url of GKE cluster").Get()
 )
 
 type googleCAClient struct {
 	caEndpoint string
 	enableTLS  bool
-	client     gcapb.IstioCertificateServiceClient
+	client     gcapb.MeshCertificateServiceClient
 }
 
 // NewGoogleCAClient create a CA client for Google CA.
@@ -68,14 +71,14 @@ func NewGoogleCAClient(endpoint string, tls bool) (caClientInterface.Client, err
 		return nil, fmt.Errorf("failed to connect to endpoint %s", endpoint)
 	}
 
-	c.client = gcapb.NewIstioCertificateServiceClient(conn)
+	c.client = gcapb.NewMeshCertificateServiceClient(conn)
 	return c, nil
 }
 
 // CSR Sign calls Google CA to sign a CSR.
 func (cl *googleCAClient) CSRSign(ctx context.Context, csrPEM []byte, token string,
 	certValidTTLInSec int64) ([]string /*PEM-encoded certificate chain*/, error) {
-	req := &gcapb.IstioCertificateRequest{
+	req := &gcapb.MeshCertificateRequest{
 		Csr:              string(csrPEM),
 		ValidityDuration: certValidTTLInSec,
 	}
@@ -85,7 +88,17 @@ func (cl *googleCAClient) CSRSign(ctx context.Context, csrPEM []byte, token stri
 		token = bearerTokenPrefix + token
 	}
 
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("Authorization", token))
+	out, _ := metadata.FromOutgoingContext(ctx)
+	// preventing races by modification.
+	out = out.Copy()
+	out["authorization"] = []string{token}
+
+	zone := parseZone(gkeClusterURL)
+	if zone != "" {
+		out["x-goog-request-params"] = []string{fmt.Sprintf("location=locations/%s", zone)}
+	}
+
+	ctx = metadata.NewOutgoingContext(ctx, out)
 	resp, err := cl.client.CreateCertificate(ctx, req)
 	if err != nil {
 		googleCAClientLog.Errorf("Failed to create certificate: %v", err)
@@ -109,4 +122,15 @@ func (cl *googleCAClient) getTLSDialOption() (grpc.DialOption, error) {
 	}
 	creds := credentials.NewClientTLSFromCert(pool, "")
 	return grpc.WithTransportCredentials(creds), nil
+}
+
+func parseZone(clusterURL string) string {
+	// input: https://container.googleapis.com/v1/projects/testproj/locations/us-central1-c/clusters/cluster1
+	// output: us-central1-c
+	var rgx = regexp.MustCompile(`.*/projects/(.*)/locations/(.*)/clusters/.*`)
+	rs := rgx.FindStringSubmatch(clusterURL)
+	if len(rs) < 3 {
+		return ""
+	}
+	return rs[2]
 }

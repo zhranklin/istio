@@ -44,6 +44,18 @@ func TestInferPodInfo(t *testing.T) {
 			wantPodName:   "istio-ingressgateway-8d9697654-qdzgh",
 			wantNamespace: "kube-system",
 		},
+		{
+			proxyName:     "istio-security-post-install-1.2.2-bm9w2.istio-system",
+			namespace:     "istio-system",
+			wantPodName:   "istio-security-post-install-1.2.2-bm9w2",
+			wantNamespace: "istio-system",
+		},
+		{
+			proxyName:     "istio-security-post-install-1.2.2-bm9w2.istio-system",
+			namespace:     "",
+			wantPodName:   "istio-security-post-install-1.2.2-bm9w2",
+			wantNamespace: "istio-system",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(strings.Split(tt.proxyName, ".")[0], func(t *testing.T) {
@@ -138,7 +150,7 @@ func TestHandleNamespaces(t *testing.T) {
 			}
 			if !tt.wantError {
 				if err != nil {
-					t.Fatalf("unexpected error %v occured", err)
+					t.Fatalf("unexpected error %v occurred", err)
 				}
 			}
 			if gotNs != tt.wantNamespace {

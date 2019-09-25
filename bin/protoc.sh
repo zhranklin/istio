@@ -22,12 +22,19 @@ fi
 SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOTDIR="$(dirname "$SCRIPTPATH")"
 
-# Ensure expected GOPATH setup
-if [ "$ROOTDIR" != "${GOPATH-$HOME/go}/src/istio.io/istio" ]; then
-  die "Istio not found in GOPATH/src/istio.io/"
-fi
+api=$(go list -m -f "{{.Dir}}" istio.io/api)
 
-gen_img=gcr.io/istio-testing/protoc:2019-03-29
+gen_img=gcr.io/istio-testing/build-tools:2019-09-04T21-28-42
 
-docker run  -i --volume /var/run/docker.sock:/var/run/docker.sock \
-  --rm --entrypoint /usr/bin/protoc -v "$ROOTDIR:$ROOTDIR" -w "$(pwd)" $gen_img "$@"
+docker run \
+  -i \
+  --rm \
+  -v "$ROOTDIR:$ROOTDIR" \
+  -v "${api}:/protos/istio.io/api" \
+  -v "$ROOTDIR"/common-protos:/protos \
+  -w "$(pwd)" \
+  $gen_img \
+  /usr/bin/protoc \
+  -I/protos \
+  -I/protos/istio.io/api \
+  "$@"

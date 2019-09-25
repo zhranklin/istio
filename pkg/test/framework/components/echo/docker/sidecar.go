@@ -21,9 +21,9 @@ import (
 	"fmt"
 
 	envoyAdmin "github.com/envoyproxy/go-control-plane/envoy/admin/v2alpha"
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 
 	"istio.io/istio/pkg/test"
 	"istio.io/istio/pkg/test/docker"
@@ -53,7 +53,7 @@ func newSidecar(container *docker.Container) (*sidecar, error) {
 		for _, c := range cfg.Configs {
 			if c.TypeUrl == "type.googleapis.com/envoy.admin.v2alpha.BootstrapConfigDump" {
 				cd := envoyAdmin.BootstrapConfigDump{}
-				if err := types.UnmarshalAny(&c, &cd); err != nil {
+				if err := ptypes.UnmarshalAny(c, &cd); err != nil {
 					return false, err
 				}
 
@@ -120,6 +120,42 @@ func (s *sidecar) WaitForConfigOrFail(t test.Failer, accept func(*envoyAdmin.Con
 	}
 }
 
+func (s *sidecar) Clusters() (*envoyAdmin.Clusters, error) {
+	msg := &envoyAdmin.Clusters{}
+	if err := s.adminRequest("clusters?format=json", msg); err != nil {
+		return nil, err
+	}
+
+	return msg, nil
+}
+
+func (s *sidecar) ClustersOrFail(t test.Failer) *envoyAdmin.Clusters {
+	t.Helper()
+	clusters, err := s.Clusters()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return clusters
+}
+
+func (s *sidecar) Listeners() (*envoyAdmin.Listeners, error) {
+	msg := &envoyAdmin.Listeners{}
+	if err := s.adminRequest("listeners?format=json", msg); err != nil {
+		return nil, err
+	}
+
+	return msg, nil
+}
+
+func (s *sidecar) ListenersOrFail(t test.Failer) *envoyAdmin.Listeners {
+	t.Helper()
+	listeners, err := s.Listeners()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return listeners
+}
+
 func (s *sidecar) adminRequest(path string, out proto.Message) error {
 	// Exec onto the pod and make a curl request to the admin port, writing
 	arg := fmt.Sprintf("http://%s:%d/%s", localhost, proxyAdminPort, path)
@@ -129,9 +165,23 @@ func (s *sidecar) adminRequest(path string, out proto.Message) error {
 			s.container.Name, err, arg, result)
 	}
 
-	if err := jsonpb.Unmarshal(bytes.NewReader(result.StdOut), out); err != nil {
+	jspb := jsonpb.Unmarshaler{AllowUnknownFields: true}
+	if err := jspb.Unmarshal(bytes.NewReader(result.StdOut), out); err != nil {
 		return fmt.Errorf("failed parsing Envoy admin response from '/%s': %v\nStderr: %s\nStdout: %s",
 			path, err, string(result.StdErr), string(result.StdOut))
 	}
 	return nil
+}
+
+func (s *sidecar) Logs() (string, error) {
+	return s.container.Logs()
+}
+
+func (s *sidecar) LogsOrFail(t test.Failer) string {
+	t.Helper()
+	logs, err := s.Logs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return logs
 }

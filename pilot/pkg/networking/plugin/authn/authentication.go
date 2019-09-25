@@ -35,11 +35,8 @@ func NewPlugin() plugin.Plugin {
 
 // OnInboundFilterChains setups filter chains based on the authentication policy.
 func (Plugin) OnInboundFilterChains(in *plugin.InputParams) []plugin.FilterChain {
-	return factory.NewPolicyApplier(in.Env.IstioConfigStore,
-		in.ServiceInstance).InboundFilterChain(in.Env.Mesh.SdsUdsPath,
-		in.Env.Mesh.EnableSdsTokenMount,
-		in.Env.Mesh.SdsUseK8SSaJwt,
-		in.Node.Metadata)
+	return factory.NewPolicyApplier(in.Push,
+		in.ServiceInstance).InboundFilterChain(in.Env.Mesh.SdsUdsPath, in.Node.Metadata)
 }
 
 // OnOutboundListener is called whenever a new outbound listener is added to the LDS output for a given service
@@ -66,7 +63,7 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 }
 
 func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
-	applier := factory.NewPolicyApplier(in.Env.IstioConfigStore, in.ServiceInstance)
+	applier := factory.NewPolicyApplier(in.Push, in.ServiceInstance)
 	if mutable.Listener == nil || (len(mutable.Listener.FilterChains) != len(mutable.FilterChains)) {
 		return fmt.Errorf("expected same number of filter chains in listener (%d) and mutable (%d)", len(mutable.Listener.FilterChains), len(mutable.FilterChains))
 	}
@@ -82,6 +79,11 @@ func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 		}
 	}
 
+	return nil
+}
+
+// OnVirtualListener implments the Plugin interface method.
+func (Plugin) OnVirtualListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 	return nil
 }
 

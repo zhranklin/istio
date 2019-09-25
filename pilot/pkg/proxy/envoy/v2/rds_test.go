@@ -18,8 +18,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/test/env"
+	"istio.io/istio/pkg/util/gogoprotomarshal"
 	"istio.io/istio/tests/util"
 )
 
@@ -70,7 +70,7 @@ func TestRDS(t *testing.T) {
 				t.Fatal("Failed to receive RDS", err)
 			}
 
-			strResponse, _ := model.ToJSONWithIndent(res, " ")
+			strResponse, _ := gogoprotomarshal.ToJSONWithIndent(res, " ")
 			_ = ioutil.WriteFile(env.IstioOut+fmt.Sprintf("/rdsv2/%s_%d.json", tt.name, idx), []byte(strResponse), 0644)
 			if len(res.Resources) == 0 {
 				t.Fatal("No response")
