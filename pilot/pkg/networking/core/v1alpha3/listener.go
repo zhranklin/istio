@@ -358,6 +358,9 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 				RouteSpecifier: rds,
 				HttpFilters:    filters,
 				UrlTransformer: urltransformers,
+				UseRemoteAddress: &types.BoolValue{
+					Value: true,
+				},
 			}),
 		},
 	})
