@@ -349,19 +349,41 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 			Prefix: value,
 		}
 	}
+	connectionManager := &http_conn.HttpConnectionManager{
+		CodecType:      http_conn.AUTO,
+		StatPrefix:     "http_default",
+		RouteSpecifier: rds,
+		HttpFilters:    filters,
+		UrlTransformer: urltransformers,
+		UseRemoteAddress: &types.BoolValue{
+			Value: true,
+		},
+	}
+	if env.Mesh.AccessLogFile != "" {
+		fl := &fileaccesslog.FileAccessLog{
+			Path: env.Mesh.AccessLogFile,
+		}
+
+		acc := &accesslog.AccessLog{
+			Name: xdsutil.FileAccessLog,
+		}
+
+		if util.IsProxyVersionGE11(node) {
+			buildAccessLog(fl, env)
+		}
+
+		if util.IsXDSMarshalingToAnyEnabled(node) {
+			acc.ConfigType = &accesslog.AccessLog_TypedConfig{TypedConfig: util.MessageToAny(fl)}
+		} else {
+			acc.ConfigType = &accesslog.AccessLog_Config{Config: util.MessageToStruct(fl)}
+		}
+		connectionManager.AccessLog = []*accesslog.AccessLog{acc}
+	}
+
 	l.FilterChains[0].Filters = append(l.FilterChains[0].Filters, listener.Filter{
 		Name: xdsutil.HTTPConnectionManager,
 		ConfigType: &listener.Filter_TypedConfig{
-			TypedConfig: util.MessageToAny(&http_conn.HttpConnectionManager{
-				CodecType:      http_conn.AUTO,
-				StatPrefix:     "http_default",
-				RouteSpecifier: rds,
-				HttpFilters:    filters,
-				UrlTransformer: urltransformers,
-				UseRemoteAddress: &types.BoolValue{
-					Value: true,
-				},
-			}),
+			TypedConfig: util.MessageToAny(connectionManager),
 		},
 	})
 	return l
