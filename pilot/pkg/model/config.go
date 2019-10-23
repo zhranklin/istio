@@ -383,6 +383,16 @@ var (
 		Collection:  metadata.IstioNetworkingV1alpha3Envoyfilters.Collection.String(),
 	}
 
+	VersionManager = ProtoSchema{
+		Type:        "version-manager",
+		Plural:      "version-managers",
+		Group:       "networking",
+		Version:     "v1alpha3",
+		MessageName: "istio.networking.v1alpha3.VersionManager",
+		Validate:    validation.ValidateVersionManager,
+		Collection:  metadata.IstioNetworkingV1alpha3Versionmanagers.Collection.String(),
+	}
+
 	// Sidecar describes the listeners associated with sidecars in a namespace
 	Sidecar = ProtoSchema{
 		Type:        "sidecar",
