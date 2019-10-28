@@ -70,7 +70,7 @@ func addHeaderExtractorFromParam(ctx context.Context, header, parameter string, 
 	expectedParameterCount := strings.Count(parameter, "{")
 	if len(paramNames) != expectedParameterCount {
 		return errors.Errorf("%v is not valid syntax. {} braces must be closed and variable names must satisfy regex "+
-			`([\-._[:alnum:]]+)`, parameter)
+			`([\-._/[:alnum:]]+)`, parameter)
 	}
 
 	// otherwise it's regex, and we need to create an extraction for each variable name they defined
@@ -104,7 +104,7 @@ func buildRegexString(rxp *regexp.Regexp, paramString string) string {
 	for _, startStop := range rxp.FindAllStringIndex(paramString, -1) {
 		start := startStop[0]
 		end := startStop[1]
-		subStr := regexp.QuoteMeta(paramString[prevEnd:start]) + `([\-._[:alnum:]]+)`
+		subStr := regexp.QuoteMeta(paramString[prevEnd:start]) + `([\-._/[:alnum:]]+)`
 		regexString += subStr
 		prevEnd = end
 	}
