@@ -89,9 +89,17 @@ func httpTransformationToGlooTransformation(httpTransformation *networking.HttpT
 					},
 				}
 			case networking.Body_MergeExtractorsToBody:
-				ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{}
+				ret.BodyTransformation = &transformapi.TransformationTemplate_MergeExtractorsToBody{
+					MergeExtractorsToBody: &transformapi.MergeExtractorsToBody{},
+				}
 			case networking.Body_Passthrough:
-				ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{}
+				ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{
+					Passthrough: &transformapi.Passthrough{},
+				}
+			}
+		} else {
+			ret.BodyTransformation = &transformapi.TransformationTemplate_Passthrough{
+				Passthrough: &transformapi.Passthrough{},
 			}
 		}
 	}
