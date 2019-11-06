@@ -1555,7 +1555,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 			Name: xdsutil.FileAccessLog,
 		}
 
-		if util.IsProxyVersionGE11(node) {
+		if util.IsProxyVersionGE11(node) || isGateway {
 			buildAccessLog(fl, env)
 		}
 
