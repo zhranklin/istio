@@ -30,7 +30,8 @@ else
 fi
 
 # security wanted VERSION='unknown'
-VERSION="${BUILD_GIT_REVISION}"
+# VERSION="${BUILD_GIT_REVISION}"
+VERSION="1.1.11"
 if [[ -n ${ISTIO_VERSION} ]]; then
   VERSION="${ISTIO_VERSION}"
 fi
@@ -43,10 +44,10 @@ fi
 GIT_DESCRIBE_TAG=$(git describe)
 
 # used by bin/gobuild.sh
-echo "istio.io/istio/pkg/version.buildVersion=${VERSION}"
-echo "istio.io/istio/pkg/version.buildGitRevision=${BUILD_GIT_REVISION}"
-echo "istio.io/istio/pkg/version.buildUser=$(whoami)"
-echo "istio.io/istio/pkg/version.buildHost=$(hostname -f)"
-echo "istio.io/istio/pkg/version.buildDockerHub=${DOCKER_HUB}"
-echo "istio.io/istio/pkg/version.buildStatus=${tree_status}"
-echo "istio.io/istio/pkg/version.buildTag=${GIT_DESCRIBE_TAG}"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildVersion=${VERSION}"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildGitRevision=${BUILD_GIT_REVISION}"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildUser=qingzhou"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildHost=$(hostname -f)"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildDockerHub=${DOCKER_HUB}"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildStatus=${tree_status}"
+echo "istio.io/istio/vendor/istio.io/pkg/version.buildTag=${GIT_DESCRIBE_TAG}"
