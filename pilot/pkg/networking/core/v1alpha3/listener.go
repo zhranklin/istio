@@ -341,6 +341,8 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		},
 	}
 	filters := []*http_conn.HttpFilter{
+		{Name: xdsutil.CORS},
+		{Name: xdsutil.Fault},
 		{Name: xdsutil.Router},
 	}
 	urltransformers := make([]*http_conn.UrlTransformer, len(env.NsfUrlPrefix))
