@@ -60,6 +60,10 @@ type Environment struct {
 	// routable L3 network. A single routable L3 network can have one or more
 	// service registries.
 	MeshNetworks *meshconfig.MeshNetworks
+
+	// QingZhou serviceMesh extension
+	PortManagerMap map[string][2]int
+	NsfHostSuffix  string
 }
 
 // Proxy contains information about an specific instance of a proxy (envoy sidecar, gateway,

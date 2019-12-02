@@ -152,6 +152,8 @@ func init() {
 	discoveryCmd.PersistentFlags().BoolVar(&serverArgs.DiscoveryOptions.EnableCaching, "discoveryCache", true,
 		"Enable caching discovery service responses")
 
+	processQingZhouMeshExtensionFlags()
+
 	// Attach the Istio logging options to the command.
 	loggingOptions.AttachCobraFlags(rootCmd)
 

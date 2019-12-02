@@ -1,0 +1,70 @@
+variables:
+  SERVICE_CODE: 'yanxuan-istio-pilot'
+  REPOSITORY_URL: $HARBOR_URL/$HARBOR_APP_DIRECTOR/$SERVICE_CODE
+  OPERA_ARGS: '--buildId=$CI_JOB_ID
+              --projectName=$CI_PROJECT_NAME
+              --projectId=$CI_PROJECT_ID
+              --projectNamespace=$CI_PROJECT_NAMESPACE
+              --serviceCode=$SERVICE_CODE
+              --commitId=$CI_COMMIT_SHA
+              --branch=$CI_COMMIT_REF_NAME
+              --pipelineId=$CI_PIPELINE_ID
+              --userName=$GITLAB_USER_NAME
+              --userEmail=$GITLAB_USER_EMAIL
+              --projectUrl=$CI_PROJECT_URL
+              --pipelineUrl=$CI_PIPELINE_URL'
+stages:
+  - package
+  - upload
+
+################################
+#    编译打包(所有环境通用)
+################################
+package:
+  stage: package
+  image: $CI_IMAGE_ISTIO_PILOT
+  script:
+    - make pilot
+  tags:
+    - ci-backend
+  artifacts:
+    paths:
+    expire_in: 2d
+
+################################
+# 测试环境镜像制品构建、上传及自动发布
+################################
+test_image_upload:
+  stage: upload
+  script:
+    - CURRENT_TIMESTAMP=`date --date='0 days ago' '+%Y%m%d-%H%M%S-%N' | cut -b 1-19`
+    - PROJECT_VERSION="$CI_COMMIT_SHA"
+    - IMAGE_TAG="${PROJECT_VERSION}-${CI_COMMIT_REF_NAME##*/}-${CURRENT_TIMESTAMP}-${CI_PIPELINE_ID}"
+    - IMAGE_NAME="${REPOSITORY_URL}:${IMAGE_TAG}"
+    - rm -rf target && mkdir target && unzip $CI_PROJECT_NAME.war -d target
+    - docker build --pull -t ${IMAGE_NAME}  .
+    - operaAgent docker $OPERA_ARGS --env=test --imageName=${IMAGE_NAME} --imageTag=${IMAGE_TAG}
+  tags:
+    - ci-backend
+  dependencies:
+    - package
+
+################################
+#    线上环境镜像制品构建及上传
+################################
+online_image_upload:
+  stage: upload
+  script:
+    - CURRENT_TIMESTAMP=`date --date='0 days ago' '+%Y%m%d-%H%M%S-%N' | cut -b 1-19`
+    - PROJECT_VERSION=`mvn -Dexec.executable='echo' -Dexec.args='${project.version}' --non-recursive exec:exec -q`
+    - IMAGE_TAG="${PROJECT_VERSION}-${CI_COMMIT_REF_NAME##*/}-${CURRENT_TIMESTAMP}-${CI_PIPELINE_ID}"
+    - IMAGE_NAME="${REPOSITORY_URL}:${IMAGE_TAG}"
+    - rm -rf target && mkdir target && unzip $CI_PROJECT_NAME.war -d target
+    - docker build -t ${IMAGE_NAME}  .
+    - operaAgent docker $OPERA_ARGS --env=online --imageName=${IMAGE_NAME} --imageTag=${IMAGE_TAG}
+  tags:
+    - ci-backend
+  only:
+    - master
+  dependencies:
+    - package

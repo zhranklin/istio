@@ -740,12 +740,12 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListeners(env *model.E
 			// dont care what the listener's capture mode setting is. The proxy does not use iptables
 			bindToPort = true
 		} else if egressListener.IstioListener != nil &&
-			// proxy uses iptables redirect or tproxy. IF mode is not set
-			// for older proxies, it defaults to iptables redirect.  If the
-			// listener's capture mode specifies NONE, then the proxy wants
-			// this listener alone to be on a physical port. If the
-			// listener's capture mode is default, then its same as
-			// iptables i.e. bindToPort is false.
+		// proxy uses iptables redirect or tproxy. IF mode is not set
+		// for older proxies, it defaults to iptables redirect.  If the
+		// listener's capture mode specifies NONE, then the proxy wants
+		// this listener alone to be on a physical port. If the
+		// listener's capture mode is default, then its same as
+		// iptables i.e. bindToPort is false.
 			egressListener.IstioListener.CaptureMode == networking.CaptureMode_NONE {
 			bindToPort = true
 		}
@@ -929,7 +929,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListeners(env *model.E
 		httpProxy.TrafficDirection = core.TrafficDirection_OUTBOUND
 		tcpListeners = append(tcpListeners, httpProxy)
 	}
-
+	configgen.addDefaultPort(env, node, node.ServiceInstances, tcpListeners)
 	return tcpListeners
 }
 
