@@ -14,6 +14,7 @@ func (s *Server) initNsfEnviroment(args *PilotArgs, environment *model.Environme
 		environment.PortManagerMap[protocol] = [2]int{src, dst}
 	}
 	environment.NsfHostSuffix = args.NsfHostSuffix
+	environment.ServiceLabels = args.ServiceLabels
 }
 
 func parsePortMapping(str string) (string, int, int) {

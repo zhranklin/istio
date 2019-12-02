@@ -17,12 +17,13 @@ import (
 	"istio.io/istio/pilot/pkg/model"
 	istio_route "istio.io/istio/pilot/pkg/networking/core/v1alpha3/route"
 	"istio.io/istio/pilot/pkg/networking/util"
+	"istio.io/istio/pkg/config/labels"
 	"istio.io/pkg/log"
 )
 
-func addXYanxuanAppHeader(proxyLabels model.LabelsCollection, out *xdsapi.RouteConfiguration, node *model.Proxy) {
+func addXYanxuanAppHeader(proxyLabels labels.Collection, out *xdsapi.RouteConfiguration, node *model.Proxy) {
 	// add x-yanxuan-app header
-	label := func(proxyLabels model.LabelsCollection) string {
+	label := func(proxyLabels labels.Collection) string {
 		for _, v := range proxyLabels {
 			if l, ok := v["yanxuan/app"]; ok {
 				return l
@@ -30,11 +31,17 @@ func addXYanxuanAppHeader(proxyLabels model.LabelsCollection, out *xdsapi.RouteC
 		}
 		return "anonymous"
 	}(proxyLabels)
-	out.RequestHeadersToAdd = make([]*core.HeaderValueOption, 1)
+	out.RequestHeadersToAdd = make([]*core.HeaderValueOption, 2)
 	out.RequestHeadersToAdd[0] = &core.HeaderValueOption{
 		Header: &core.HeaderValue{
 			Key:   "x-yanxuan-app",
 			Value: label + "." + node.ConfigNamespace,
+		},
+	}
+	out.RequestHeadersToAdd[1] = &core.HeaderValueOption{
+		Header: &core.HeaderValue{
+			Key:   "Source-External",
+			Value: label,
 		},
 	}
 }
@@ -148,17 +155,11 @@ func (configgen *ConfigGeneratorImpl) addDefaultPort(env *model.Environment, nod
 	return listeners
 }
 
-func addAdditionalConnectionManagerConfigs(connectionManager *http_conn.HttpConnectionManager) {
-	connectionManager.UseRemoteAddress = &types.BoolValue{
-		Value: true,
-	}
-}
-
 func getLogPath(path string, node *model.Proxy, env *model.Environment) string {
 	var serviceName string
 	for _, v := range node.WorkloadLabels {
 		for lk, lv := range v {
-			if env.ServiceLabel == lk {
+			if env.ServiceLabels == lk {
 				serviceName = lv
 			}
 		}

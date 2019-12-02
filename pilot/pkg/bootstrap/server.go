@@ -196,8 +196,9 @@ type PilotArgs struct {
 
 	//QingZhou serviceMesh extension
 	PortMappingManager string
-	NsfHostSuffix  string
-
+	NsfHostSuffix      string
+	LabelHeaderMapping string
+	ServiceLabels      string
 	//QingZhou gateway extension
 }
 

@@ -64,6 +64,7 @@ type Environment struct {
 	// QingZhou serviceMesh extension
 	PortManagerMap map[string][2]int
 	NsfHostSuffix  string
+	ServiceLabels  string
 }
 
 // Proxy contains information about an specific instance of a proxy (envoy sidecar, gateway,

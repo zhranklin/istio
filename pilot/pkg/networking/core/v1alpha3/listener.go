@@ -1744,7 +1744,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 
 	if env.Mesh.AccessLogFile != "" {
 		fl := &accesslogconfig.FileAccessLog{
-			Path: env.Mesh.AccessLogFile,
+			Path: getLogPath(env.Mesh.AccessLogFile, node, env),
 		}
 
 		acc := &accesslog.AccessLog{
