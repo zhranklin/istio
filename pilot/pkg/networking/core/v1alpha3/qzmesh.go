@@ -117,7 +117,7 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 	}
 	if env.Mesh.AccessLogFile != "" {
 		fl := &fileaccesslog.FileAccessLog{
-			Path: env.Mesh.AccessLogFile,
+			Path: getLogPath(env.Mesh.AccessLogFile, node, env),
 		}
 
 		acc := &accesslog.AccessLog{

@@ -56,7 +56,7 @@ func buildInboundNetworkFilters(env *model.Environment, node *model.Proxy, insta
 func setAccessLog(env *model.Environment, node *model.Proxy, config *tcp_proxy.TcpProxy) *tcp_proxy.TcpProxy {
 	if env.Mesh.AccessLogFile != "" {
 		fl := &accesslogconfig.FileAccessLog{
-			Path: env.Mesh.AccessLogFile,
+			Path: getLogPath(env.Mesh.AccessLogFile, node, env),
 		}
 
 		acc := &accesslog.AccessLog{
