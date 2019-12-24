@@ -48,7 +48,7 @@ func getSuffixName(suffix string, host string, port int) string {
 	if isK8SSvcHost(host){
 		serviceName := strings.Split(host, ".")[0]
 		namespace := strings.Split(host, ".")[1]
-		n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+suffix, port)
+		n := fmt.Sprintf("%s", namespace+"."+serviceName+suffix)
 		return n
 	}
 	return ""
