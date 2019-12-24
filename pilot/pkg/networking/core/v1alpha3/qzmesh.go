@@ -8,14 +8,12 @@ import (
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	fileaccesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v2"
 	accesslog "github.com/envoyproxy/go-control-plane/envoy/config/filter/accesslog/v2"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	xdsutil "github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/types"
 	"istio.io/istio/pilot/pkg/model"
-	istio_route "istio.io/istio/pilot/pkg/networking/core/v1alpha3/route"
 	"istio.io/istio/pilot/pkg/networking/util"
 	"istio.io/istio/pkg/config/labels"
 	"istio.io/pkg/log"
@@ -46,19 +44,14 @@ func addXYanxuanAppHeader(proxyLabels labels.Collection, out *xdsapi.RouteConfig
 	}
 }
 
-func addSuffixIfNecessary(push *model.PushContext, host string, virtualHostWrapper istio_route.VirtualHostWrapper, uniques map[string]struct{}, name string, node *model.Proxy, env *model.Environment, vh route.VirtualHost) bool {
-	if push.Env.NsfHostSuffix != "" && isK8SSvcHost(host) {
+func getSuffixName(suffix string, host string, port int) string {
+	if isK8SSvcHost(host){
 		serviceName := strings.Split(host, ".")[0]
 		namespace := strings.Split(host, ".")[1]
-		n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
-		if _, ok := uniques[n]; ok {
-			push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s, when add prefix and suffix", name))
-			log.Debugf("Dropping duplicate route entry %v.", n)
-			return true
-		}
-		vh.Domains = append(vh.Domains, namespace+"."+serviceName+push.Env.NsfHostSuffix)
+		n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+suffix, port)
+		return n
 	}
-	return false
+	return ""
 }
 
 func isK8SSvcHost(name string) bool {
@@ -168,4 +161,15 @@ func getLogPath(path string, node *model.Proxy, env *model.Environment) string {
 		return path + serviceName + "-envoy-access.log"
 	}
 	return path
+}
+
+func addFilter(filters []*http_conn.HttpFilter) []*http_conn.HttpFilter {
+	fmt.Printf("===add yxadapter")
+	filters = append(filters,
+		&http_conn.HttpFilter{
+			Name:       "com.netease.yxadapter",
+			ConfigType: &http_conn.HttpFilter_TypedConfig{},
+		},
+	)
+	return filters
 }

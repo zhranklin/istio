@@ -1691,6 +1691,7 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
+	filters = addFilter(filters)
 	filters = append(filters,
 		&http_conn.HttpFilter{Name: xdsutil.CORS},
 		&http_conn.HttpFilter{Name: xdsutil.Fault},

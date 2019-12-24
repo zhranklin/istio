@@ -113,6 +113,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarInboundHTTPRouteConfig(env *mo
 	}
 
 	r = envoyfilter.ApplyRouteConfigurationPatches(networking.EnvoyFilter_SIDECAR_INBOUND, in.Node, in.Push, r)
+	addXYanxuanAppHeader(node.WorkloadLabels, r, node)
 	return r
 }
 
@@ -312,11 +313,18 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 			name := domainName(hostname, virtualHostWrapper.Port)
 			if _, found := uniques[name]; !found {
 				uniques[name] = struct{}{}
-				virtualHosts = append(virtualHosts, &route.VirtualHost{
+				vh := &route.VirtualHost{
 					Name:    name,
 					Domains: []string{hostname, domainName(hostname, virtualHostWrapper.Port)},
 					Routes:  virtualHostWrapper.Routes,
-				})
+				}
+				if push.Env.NsfHostSuffix != "" {
+					d := getSuffixName(push.Env.NsfHostSuffix, hostname, virtualHostWrapper.Port)
+					if d != "" {
+						vh.Domains = append(vh.Domains, d)
+					}
+				}
+				virtualHosts = append(virtualHosts, vh)
 			} else {
 				push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
 			}
@@ -327,11 +335,18 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 			if _, found := uniques[name]; !found {
 				uniques[name] = struct{}{}
 				domains := generateVirtualHostDomains(svc, virtualHostWrapper.Port, node)
-				virtualHosts = append(virtualHosts, &route.VirtualHost{
+				vh := &route.VirtualHost{
 					Name:    name,
 					Domains: domains,
 					Routes:  virtualHostWrapper.Routes,
-				})
+				}
+				if push.Env.NsfHostSuffix != "" {
+					d := getSuffixName(push.Env.NsfHostSuffix, string(svc.Hostname), virtualHostWrapper.Port)
+					if d != "" {
+						vh.Domains = append(vh.Domains, d)
+					}
+				}
+				virtualHosts = append(virtualHosts, vh)
 			} else {
 				push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
 			}
