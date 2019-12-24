@@ -162,7 +162,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 		proxyLabels = append(proxyLabels, w.Labels)
 	}
 
-	var egressVh *route.VirtualHost
 	// Get list of virtual services bound to the mesh gateway
 	virtualHostWrappers := istio_route.BuildSidecarVirtualHostsFromConfigAndRegistry(node, push, nameToServiceMap, proxyLabels, virtualServices, listenerPort)
 	vHostPortMap := make(map[int][]route.VirtualHost)
@@ -190,9 +189,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 						push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s, when add prefix and suffix", name))
 						log.Debugf("Dropping duplicate route entry %v.", n)
 						continue
-					}
-					if serviceName == env.EgressDomain {
-						egressVh = &vh
 					}
 					vh.Domains = append(vh.Domains, namespace+"."+serviceName+push.Env.NsfHostSuffix)
 				}
@@ -241,14 +237,6 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 	}
 
 	util.SortVirtualHosts(virtualHosts)
-
-	if env.NsfHostSuffix != "" && egressVh != nil {
-		virtualHosts = append(virtualHosts, route.VirtualHost{
-			Name:    "to_egress",
-			Domains: []string{"*" + env.NsfHostSuffix},
-			Routes:  egressVh.Routes,
-		})
-	}
 
 	if pilot.EnableFallthroughRoute() {
 		// This needs to be the last virtual host, as routes are evaluated in order.
