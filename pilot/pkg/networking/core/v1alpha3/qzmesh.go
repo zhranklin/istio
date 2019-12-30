@@ -97,6 +97,12 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		},
 	}
 	filters := []*http_conn.HttpFilter{
+		{
+			Name:       "com.netease.yxadapter",
+			ConfigType: &http_conn.HttpFilter_TypedConfig{},
+		},
+		{Name: xdsutil.CORS},
+		{Name: xdsutil.Fault},
 		{Name: xdsutil.Router},
 	}
 	connectionManager := &http_conn.HttpConnectionManager{

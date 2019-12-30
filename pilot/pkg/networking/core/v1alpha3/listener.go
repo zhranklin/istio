@@ -1691,10 +1691,13 @@ func buildHTTPConnectionManager(node *model.Proxy, env *model.Environment, httpO
 		filters = append(filters, &http_conn.HttpFilter{Name: xdsutil.GRPCWeb})
 	}
 
-	filters = addFilter(filters)
 	filters = append(filters,
 		&http_conn.HttpFilter{Name: xdsutil.CORS},
 		&http_conn.HttpFilter{Name: xdsutil.Fault},
+		&http_conn.HttpFilter{
+			Name:       "com.netease.yxadapter",
+			ConfigType: &http_conn.HttpFilter_TypedConfig{},
+		},
 		&http_conn.HttpFilter{Name: xdsutil.Router},
 	)
 
