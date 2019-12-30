@@ -321,7 +321,13 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 				if push.Env.NsfHostSuffix != "" {
 					d := getSuffixName(push.Env.NsfHostSuffix, hostname, virtualHostWrapper.Port)
 					if d != "" {
-						vh.Domains = append(vh.Domains, d)
+						if _,exist := uniques[d]; exist {
+							push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
+							continue
+						}else{
+							vh.Domains = append(vh.Domains, d)
+							uniques[d] = struct{}{}
+						}
 					}
 				}
 				virtualHosts = append(virtualHosts, vh)
@@ -343,7 +349,13 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 				if push.Env.NsfHostSuffix != "" {
 					d := getSuffixName(push.Env.NsfHostSuffix, string(svc.Hostname), virtualHostWrapper.Port)
 					if d != "" {
-						vh.Domains = append(vh.Domains, d)
+						if _,exist := uniques[d]; exist {
+							push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
+							continue
+						}else{
+							vh.Domains = append(vh.Domains, d)
+							uniques[d] = struct{}{}
+						}
 					}
 				}
 				virtualHosts = append(virtualHosts, vh)

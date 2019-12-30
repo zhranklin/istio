@@ -97,12 +97,12 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		},
 	}
 	filters := []*http_conn.HttpFilter{
+		{Name: xdsutil.CORS},
+		{Name: xdsutil.Fault},
 		{
 			Name:       "com.netease.yxadapter",
 			ConfigType: &http_conn.HttpFilter_TypedConfig{},
 		},
-		{Name: xdsutil.CORS},
-		{Name: xdsutil.Fault},
 		{Name: xdsutil.Router},
 	}
 	connectionManager := &http_conn.HttpConnectionManager{
@@ -167,15 +167,4 @@ func getLogPath(path string, node *model.Proxy, env *model.Environment) string {
 		return path + serviceName + "-envoy-access.log"
 	}
 	return path
-}
-
-func addFilter(filters []*http_conn.HttpFilter) []*http_conn.HttpFilter {
-	fmt.Printf("===add yxadapter")
-	filters = append(filters,
-		&http_conn.HttpFilter{
-			Name:       "com.netease.yxadapter",
-			ConfigType: &http_conn.HttpFilter_TypedConfig{},
-		},
-	)
-	return filters
 }
