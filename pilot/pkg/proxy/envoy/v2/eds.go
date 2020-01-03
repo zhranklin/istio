@@ -15,8 +15,11 @@
 package v2
 
 import (
+	"fmt"
+	"fortio.org/fortio/log"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -265,7 +268,6 @@ func (s *DiscoveryServer) updateClusterInc(push *model.PushContext, clusterName 
 // it with a model where DiscoveryServer keeps track of all endpoint registries
 // directly, and calls them one by one.
 func (s *DiscoveryServer) updateServiceShards(push *model.PushContext) error {
-
 	// TODO: if ServiceDiscovery is aggregate, and all members support direct, use
 	// the direct interface.
 	var registries []aggregate.Registry
@@ -291,7 +293,7 @@ func (s *DiscoveryServer) updateServiceShards(push *model.PushContext) error {
 	for _, svc := range push.Services(nil) {
 		for _, registry := range nonK8sRegistries {
 			// in case this svc does not belong to the registry
-			if svc, _ := registry.GetService(svc.Hostname); svc == nil {
+			if svc1, _ := registry.GetService(svc.Hostname); svc1 == nil {
 				continue
 			}
 
@@ -323,7 +325,6 @@ func (s *DiscoveryServer) updateServiceShards(push *model.PushContext) error {
 					})
 				}
 			}
-
 			s.edsUpdate(registry.ClusterID, string(svc.Hostname), svc.Attributes.Namespace, entries, true)
 		}
 	}
@@ -498,6 +499,7 @@ func (s *DiscoveryServer) WorkloadUpdate(id string, workloadLabels map[string]st
 // on each step: instead the conversion happens once, when an endpoint is first discovered.
 func (s *DiscoveryServer) EDSUpdate(shard, serviceName string, namespace string,
 	istioEndpoints []*model.IstioEndpoint) error {
+	log.Infof("==== EDSUpdate")
 	inboundEDSUpdates.Increment()
 	s.edsUpdate(shard, serviceName, namespace, istioEndpoints, false)
 	return nil
@@ -511,6 +513,12 @@ func (s *DiscoveryServer) edsUpdate(shard, serviceName string, namespace string,
 	// update. The endpoint updates may be grouped by K8S clusters, other service registries
 	// or by deployment. Multiple updates are debounced, to avoid too frequent pushes.
 	// After debounce, the services are merged and pushed.
+	if strings.HasPrefix(serviceName, "a.powerful-gray") {
+		fmt.Printf("=== in edsUpdate")
+		for _, v := range istioEndpoints {
+			fmt.Printf("=== service: %s, address: %s \n ", serviceName, v.Address)
+		}
+	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	requireFull := false

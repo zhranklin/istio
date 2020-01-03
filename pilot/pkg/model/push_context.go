@@ -15,10 +15,12 @@
 package model
 
 import (
-	"encoding/json"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
+
+	"encoding/json"
 
 	networking "istio.io/api/networking/v1alpha3"
 
@@ -174,6 +176,7 @@ type PushRequest struct {
 
 // Merge two update requests together
 func (first *PushRequest) Merge(other *PushRequest) *PushRequest {
+
 	if first == nil {
 		return other
 	}
@@ -181,6 +184,14 @@ func (first *PushRequest) Merge(other *PushRequest) *PushRequest {
 		return first
 	}
 
+	fmt.Printf("=== One\n")
+	for k, v := range other.EdsUpdates {
+		fmt.Printf("=== key: %s, value: %v\n", k,v)
+	}
+	fmt.Printf("=== Another\n")
+	for k, v := range first.EdsUpdates {
+		fmt.Printf("=== key: %s, value: %v\n", k,v)
+	}
 	merged := &PushRequest{
 		// Keep the first (older) start time
 		Start: first.Start,
@@ -734,6 +745,7 @@ func (ps *PushContext) initServiceRegistry(env *Environment) error {
 			if s.Attributes.ExportTo[visibility.Private] {
 				ps.privateServicesByNamespace[ns] = append(ps.privateServicesByNamespace[ns], s)
 			} else {
+				fmt.Printf("")
 				ps.publicServices = append(ps.publicServices, s)
 			}
 		}

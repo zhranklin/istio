@@ -15,6 +15,7 @@
 package external
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -61,6 +62,8 @@ func NewServiceDiscovery(callbacks model.ConfigStoreCache, store model.IstioConf
 		callbacks.RegisterEventHandler(model.ServiceEntry.Type, func(config model.Config, event model.Event) {
 			// Recomputing the index here is too expensive.
 			c.changeMutex.Lock()
+			fmt.Println("==== in sync" + config.Name)
+			fmt.Printf("==== %d \n", event)
 			c.lastChange = time.Now()
 			c.updateNeeded = true
 			c.changeMutex.Unlock()
@@ -118,6 +121,9 @@ func (d *ServiceEntryStore) Services() ([]*model.Service, error) {
 // DO NOT USE
 func (d *ServiceEntryStore) GetService(hostname host.Name) (*model.Service, error) {
 	for _, service := range d.getServices() {
+		if hostname == "a.powerful.svc.cluster.local" {
+			fmt.Printf("=== dump host: %s \n", service.Hostname)
+		}
 		if service.Hostname == hostname {
 			return service, nil
 		}
@@ -187,7 +193,7 @@ func (d *ServiceEntryStore) update() {
 
 	for _, cfg := range d.store.ServiceEntries() {
 		for _, instance := range convertInstances(cfg) {
-
+			fmt.Printf("=== host: %s, instance: %s\n", instance.Service.Hostname, instance.Endpoint.Address)
 			out, found := di[instance.Service.Hostname][instance.Service.Attributes.Namespace]
 			if !found {
 				out = []*model.ServiceInstance{}

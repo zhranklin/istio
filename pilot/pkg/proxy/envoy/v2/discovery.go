@@ -15,9 +15,12 @@
 package v2
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
+
+	"fortio.org/fortio/log"
 
 	ads "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/google/uuid"
@@ -261,6 +264,7 @@ func (s *DiscoveryServer) periodicRefreshMetrics(stopCh <-chan struct{}) {
 // Push is called to push changes on config updates using ADS. This is set in DiscoveryService.Push,
 // to avoid direct dependencies.
 func (s *DiscoveryServer) Push(req *model.PushRequest) {
+	log.Infof("=== Push")
 	if !req.Full {
 		req.Push = s.globalPushContext()
 		go s.AdsPushAll(versionInfo(), req)
@@ -410,6 +414,10 @@ func debounce(ch chan *model.PushRequest, stopCh <-chan struct{}, pushFn func(re
 			debouncedEvents++
 
 			req = req.Merge(r)
+			fmt.Printf("=== final \n")
+			for k, v := range req.EdsUpdates {
+				fmt.Printf("key: %s, value:%v \n", k, v)
+			}
 		case <-timeChan:
 			if free {
 				pushWorker()
