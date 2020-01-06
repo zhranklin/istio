@@ -2,6 +2,8 @@ package v1alpha3
 
 import (
 	"fmt"
+	"istio.io/istio/pilot/pkg/networking/plugin"
+	"istio.io/istio/pkg/config/protocol"
 	"strconv"
 	"strings"
 
@@ -45,7 +47,7 @@ func addXYanxuanAppHeader(proxyLabels labels.Collection, out *xdsapi.RouteConfig
 }
 
 func getSuffixName(suffix string, host string, port int) string {
-	if isK8SSvcHost(host){
+	if isK8SSvcHost(host) {
 		serviceName := strings.Split(host, ".")[0]
 		namespace := strings.Split(host, ".")[1]
 		n := fmt.Sprintf("%s", namespace+"."+serviceName+suffix)
@@ -66,7 +68,7 @@ func isK8SSvcHost(name string) bool {
 }
 
 func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPort int, dstPort int,
-	env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance) *xdsapi.Listener {
+	env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance, push *model.PushContext) *xdsapi.Listener {
 	log.Infof("default listener build start")
 	httpOpts := &httpListenerOpts{
 		useRemoteAddress: false,
@@ -86,6 +88,27 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		skipUserFilters: true,
 	}
 	l := buildListener(opts)
+	pluginParams := &plugin.InputParams{
+		ListenerProtocol: plugin.ModelProtocolToListenerProtocol(node, protocol.HTTP,
+			core.TrafficDirection_OUTBOUND),
+		Env:  env,
+		Node: node,
+		Push: push,
+		Port: &model.Port{
+			Name:     "",
+			Port:     srcPort,
+			Protocol: protocol.HTTP,
+		},
+	}
+	mutable := &plugin.MutableObjects{
+		Listener:     l,
+		FilterChains: getPluginFilterChain(opts),
+	}
+	for _, p := range configgen.Plugins {
+		if err := p.OnOutboundListener(pluginParams, mutable); err != nil {
+			log.Error("build plugin error :" + err.Error())
+		}
+	}
 	rds := &http_conn.HttpConnectionManager_Rds{
 		Rds: &http_conn.Rds{
 			ConfigSource: &core.ConfigSource{
@@ -99,11 +122,6 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 	filters := []*http_conn.HttpFilter{
 		{Name: xdsutil.CORS},
 		{Name: xdsutil.Fault},
-		{
-			Name:       "com.netease.yxadapter",
-			ConfigType: &http_conn.HttpFilter_TypedConfig{},
-		},
-		{Name: xdsutil.Router},
 	}
 	connectionManager := &http_conn.HttpConnectionManager{
 		CodecType:      http_conn.AUTO,
@@ -132,6 +150,19 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 		}
 		connectionManager.AccessLog = []*accesslog.AccessLog{acc}
 	}
+	for _, v := range mutable.FilterChains {
+		connectionManager.HttpFilters = append(connectionManager.HttpFilters, v.HTTP...)
+	}
+
+	connectionManager.HttpFilters = append(connectionManager.HttpFilters, []*http_conn.HttpFilter{
+		{
+			Name:       "com.netease.yxadapter",
+			ConfigType: &http_conn.HttpFilter_TypedConfig{},
+		},
+		{
+			Name: xdsutil.Router,
+		},
+	}...)
 
 	l.FilterChains[0].Filters = append(l.FilterChains[0].Filters, &listener.Filter{
 		Name: xdsutil.HTTPConnectionManager,
@@ -142,12 +173,12 @@ func (configgen *ConfigGeneratorImpl) buildDefaultHttpPortMappingListener(srcPor
 
 	return l
 }
-func (configgen *ConfigGeneratorImpl) addDefaultPort(env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance, listeners []*xdsapi.Listener) []*xdsapi.Listener {
+func (configgen *ConfigGeneratorImpl) addDefaultPort(env *model.Environment, node *model.Proxy, proxyInstances []*model.ServiceInstance, listeners []*xdsapi.Listener, push *model.PushContext) []*xdsapi.Listener {
 	//Todo: support other protocol
 	for k, v := range env.PortManagerMap {
 		switch k {
 		case "http":
-			l := configgen.buildDefaultHttpPortMappingListener(v[0], v[1], env, node, proxyInstances)
+			l := configgen.buildDefaultHttpPortMappingListener(v[0], v[1], env, node, proxyInstances, push)
 			listeners = append(listeners, l)
 		}
 	}

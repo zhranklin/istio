@@ -929,7 +929,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundListeners(env *model.E
 		httpProxy.TrafficDirection = core.TrafficDirection_OUTBOUND
 		tcpListeners = append(tcpListeners, httpProxy)
 	}
-	tcpListeners = configgen.addDefaultPort(env, node, node.ServiceInstances, tcpListeners)
+	tcpListeners = configgen.addDefaultPort(env, node, node.ServiceInstances, tcpListeners, push)
 	return tcpListeners
 }
 
