@@ -187,7 +187,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 		if env.NsfHostSuffix != "" && egressVh != nil {
 			virtualHosts = append(virtualHosts, &route.VirtualHost{
 				Name:    "to_egress",
-				Domains: []string{"*." + env.NsfHostSuffix},
+				Domains: []string{"*" + env.NsfHostSuffix},
 				Routes:  egressVh.Routes,
 			})
 		}
@@ -339,7 +339,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 						}
 					}
 				}
-				if hostname == "egress" {
+				if strings.HasPrefix(hostname, "egress") {
 					egressVh = vh
 				}
 				virtualHosts = append(virtualHosts, vh)
@@ -370,7 +370,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 						}
 					}
 				}
-				if svc.Hostname == "egress" {
+				if strings.HasPrefix(string(svc.Hostname), "egress") {
 					egressVh = vh
 				}
 				virtualHosts = append(virtualHosts, vh)
@@ -388,7 +388,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 	} else {
 		tmpVirtualHosts = vHostPortMap[listenerPort]
 	}
-
+	fmt.Printf("egressVh: %v", egressVh)
 	return tmpVirtualHosts, egressVh
 }
 

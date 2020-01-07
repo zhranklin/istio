@@ -184,14 +184,6 @@ func (first *PushRequest) Merge(other *PushRequest) *PushRequest {
 		return first
 	}
 
-	fmt.Printf("=== One\n")
-	for k, v := range other.EdsUpdates {
-		fmt.Printf("=== key: %s, value: %v\n", k,v)
-	}
-	fmt.Printf("=== Another\n")
-	for k, v := range first.EdsUpdates {
-		fmt.Printf("=== key: %s, value: %v\n", k,v)
-	}
 	merged := &PushRequest{
 		// Keep the first (older) start time
 		Start: first.Start,

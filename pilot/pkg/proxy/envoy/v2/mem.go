@@ -17,7 +17,6 @@ package v2
 import (
 	"errors"
 	"fmt"
-	"fortio.org/fortio/log"
 	"sync"
 
 	"istio.io/istio/pilot/pkg/model"
@@ -175,7 +174,6 @@ func (sd *MemServiceDiscovery) AddEndpoint(service host.Name, servicePortName st
 
 // SetEndpoints update the list of endpoints for a service, similar with K8S controller.
 func (sd *MemServiceDiscovery) SetEndpoints(service string, namespace string, endpoints []*model.IstioEndpoint) {
-	log.Infof("=== SetEndpoints")
 	sh := host.Name(service)
 	sd.mutex.Lock()
 	defer sd.mutex.Unlock()
