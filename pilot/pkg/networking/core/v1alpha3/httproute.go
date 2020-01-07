@@ -164,8 +164,9 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 			cacheHit = true
 		}
 	}
+	var egressVh *route.VirtualHost
 	if !cacheHit {
-		virtualHosts = configgen.buildSidecarOutboundVirtualHosts(env, node, push, routeName, listenerPort)
+		virtualHosts, egressVh = configgen.buildSidecarOutboundVirtualHosts(env, node, push, routeName, listenerPort)
 		if listenerPort > 0 {
 			// only cache for tcp ports and not for uds
 			vHostCache[listenerPort] = virtualHosts
@@ -183,6 +184,13 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 
 	if features.EnableFallthroughRoute.Get() && !useSniffing {
 		// This needs to be the last virtual host, as routes are evaluated in order.
+		if env.NsfHostSuffix != "" && egressVh != nil {
+			virtualHosts = append(virtualHosts, &route.VirtualHost{
+				Name:    "to_egress",
+				Domains: []string{"*." + env.NsfHostSuffix},
+				Routes:  egressVh.Routes,
+			})
+		}
 		if util.IsAllowAnyOutbound(node) {
 			virtualHosts = append(virtualHosts, &route.VirtualHost{
 				Name:    util.PassthroughRouteName,
@@ -248,7 +256,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 }
 
 func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.Environment, node *model.Proxy, push *model.PushContext,
-	routeName string, listenerPort int) []*route.VirtualHost {
+	routeName string, listenerPort int) ([]*route.VirtualHost, *route.VirtualHost) {
 
 	var virtualServices []model.Config
 	var services []*model.Service
@@ -262,7 +270,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 	// We should never be getting a nil egress listener because the code that setup this RDS
 	// call obviously saw an egress listener
 	if egressListener == nil {
-		return nil
+		return nil, nil
 	}
 
 	services = egressListener.Services()
@@ -302,6 +310,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 		virtualServices, listenerPort)
 	vHostPortMap := make(map[int][]*route.VirtualHost)
 	uniques := make(map[string]struct{})
+	var egressVh *route.VirtualHost
 	for _, virtualHostWrapper := range virtualHostWrappers {
 		// If none of the routes matched by source, skip this virtual host
 		if len(virtualHostWrapper.Routes) == 0 {
@@ -321,14 +330,17 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 				if push.Env.NsfHostSuffix != "" {
 					d := getSuffixName(push.Env.NsfHostSuffix, hostname, virtualHostWrapper.Port)
 					if d != "" {
-						if _,exist := uniques[d]; exist {
+						if _, exist := uniques[d]; exist {
 							push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
 							continue
-						}else{
+						} else {
 							vh.Domains = append(vh.Domains, d)
 							uniques[d] = struct{}{}
 						}
 					}
+				}
+				if hostname == "egress" {
+					egressVh = vh
 				}
 				virtualHosts = append(virtualHosts, vh)
 			} else {
@@ -349,14 +361,17 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 				if push.Env.NsfHostSuffix != "" {
 					d := getSuffixName(push.Env.NsfHostSuffix, string(svc.Hostname), virtualHostWrapper.Port)
 					if d != "" {
-						if _,exist := uniques[d]; exist {
+						if _, exist := uniques[d]; exist {
 							push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s", name))
 							continue
-						}else{
+						} else {
 							vh.Domains = append(vh.Domains, d)
 							uniques[d] = struct{}{}
 						}
 					}
+				}
+				if svc.Hostname == "egress" {
+					egressVh = vh
 				}
 				virtualHosts = append(virtualHosts, vh)
 			} else {
@@ -374,7 +389,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundVirtualHosts(_ *model.
 		tmpVirtualHosts = vHostPortMap[listenerPort]
 	}
 
-	return tmpVirtualHosts
+	return tmpVirtualHosts, egressVh
 }
 
 // Returns the set of virtual hosts that correspond to the listener that has HTTP protocol detection

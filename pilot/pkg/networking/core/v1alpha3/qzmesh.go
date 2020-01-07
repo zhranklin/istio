@@ -2,6 +2,8 @@ package v1alpha3
 
 import (
 	"fmt"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	route2 "istio.io/istio/pilot/pkg/networking/core/v1alpha3/route"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pkg/config/protocol"
 	"strconv"
@@ -198,4 +200,23 @@ func getLogPath(path string, node *model.Proxy, env *model.Environment) string {
 		return path + serviceName + "-envoy-access.log"
 	}
 	return path
+}
+
+func addSuffixIfNecessary(push *model.PushContext, host string, virtualHostWrapper route2.VirtualHostWrapper, uniques map[string]struct{}, name string, node *model.Proxy, vh route.VirtualHost) (*route.VirtualHost, bool) {
+	var egressVh *route.VirtualHost
+	if push.Env.NsfHostSuffix != "" && isK8SSvcHost(host) {
+		serviceName := strings.Split(host, ".")[0]
+		namespace := strings.Split(host, ".")[1]
+		n := fmt.Sprintf("%s:%d", namespace+"."+serviceName+push.Env.NsfHostSuffix, virtualHostWrapper.Port)
+		if _, ok := uniques[n]; ok {
+			push.Add(model.DuplicatedDomains, name, node, fmt.Sprintf("duplicate domain from virtual service: %s, when add prefix and suffix", name))
+			log.Debugf("Dropping duplicate route entry %v.", n)
+			return nil, true
+		}
+		if serviceName == "egress" {
+			egressVh = &vh
+		}
+		vh.Domains = append(vh.Domains, namespace+"."+serviceName+push.Env.NsfHostSuffix)
+	}
+	return egressVh, false
 }
