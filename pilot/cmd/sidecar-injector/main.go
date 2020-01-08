@@ -61,6 +61,8 @@ var (
 		webhookConfigName   string
 		webhookName         string
 		monitoringPort      int
+
+		dependOnSvm bool
 	}{
 		loggingOptions: log.DefaultOptions(),
 	}
@@ -81,6 +83,7 @@ var (
 			parameters := inject.WebhookParameters{
 				ConfigFile:          flags.injectConfigFile,
 				ValuesFile:          flags.injectValuesFile,
+				KubeConfigFile:      flags.kubeconfigFile,
 				MeshFile:            flags.meshconfig,
 				CertFile:            flags.certFile,
 				KeyFile:             flags.privateKeyFile,
@@ -88,6 +91,7 @@ var (
 				HealthCheckInterval: flags.healthCheckInterval,
 				HealthCheckFile:     flags.healthCheckFile,
 				MonitoringPort:      flags.monitoringPort,
+				DependOnSvm:         flags.dependOnSvm,
 			}
 			wh, err := inject.NewWebhook(parameters)
 			if err != nil {
@@ -251,6 +255,8 @@ func init() {
 		"File containing the x509 Certificate for HTTPS.")
 	rootCmd.PersistentFlags().IntVar(&flags.port, "port", 443, "Webhook port")
 	rootCmd.PersistentFlags().IntVar(&flags.monitoringPort, "monitoringPort", 15014, "Webhook monitoring port")
+	rootCmd.PersistentFlags().BoolVar(&flags.dependOnSvm, "dependOnSvm", false,
+		"Whether to use SVM to discover envoy version")
 
 	rootCmd.PersistentFlags().DurationVar(&flags.healthCheckInterval, "healthCheckInterval", 0,
 		"Configure how frequently the health check file specified by --healthCheckFile should be updated")
