@@ -291,6 +291,7 @@ func (s *DiscoveryServer) updateServiceShards(push *model.PushContext) error {
 		for _, registry := range nonK8sRegistries {
 			// in case this svc does not belong to the registry
 			if svc1, _ := registry.GetService(svc.Hostname); svc1 == nil {
+				s.edsUpdate(registry.ClusterID, string(svc.Hostname), svc.Attributes.Namespace, nil, true)
 				continue
 			}
 
