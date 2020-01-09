@@ -634,3 +634,25 @@ spec:
       served: true
       storage: true
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: versionmanagers.networking.istio.io
+  labels:
+    app: istio-pilot
+    chart: istio
+    heritage: Tiller
+    release: istio
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  group: networking.istio.io
+  names:
+    kind: VersionManager
+    plural: versionmanagers
+    singular: Versionmanager
+    categories:
+      - istio-io
+      - networking-istio-io
+  scope: Namespaced
+  version: v1alpha3

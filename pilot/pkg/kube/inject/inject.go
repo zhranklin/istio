@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -33,12 +34,12 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gogo/protobuf/types"
 	"github.com/hashicorp/go-multierror"
-
 	"istio.io/api/annotation"
 	meshconfig "istio.io/api/mesh/v1alpha1"
+	"istio.io/api/networking/v1alpha3"
+	"istio.io/istio/pilot/pkg/kube/version"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/pkg/log"
-
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/batch/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -632,6 +633,35 @@ func InjectionData(sidecarTemplate, valuesConfig, version string, typeMetadata *
 		return nil, "", fmt.Errorf("error encoded injection status: %v", err)
 	}
 	return &sic, string(statusAnnotationValue), nil
+}
+
+func InjectionVersion(svmClient *version.Client, spec SidecarInjectionSpec, pod *corev1.Pod) (*SidecarInjectionSpec, error) {
+	crd, err := svmClient.Get(pod.Namespace)
+	if err != nil {
+		log.Warna(err)
+		return nil, err
+	}
+	pb, err := model.VersionManager.FromJSONMap(crd.Spec)
+	if err != nil {
+		return nil, err
+	}
+	vm, ok := pb.(*v1alpha3.VersionManager)
+	if !ok {
+		return nil, errors.New("type assertion failed. original type:[proto.Message], assert type:[v1alpha3.VersionManager]")
+	}
+	if vm.DefaultVersion == "" {
+		return nil, errors.New(fmt.Sprintf("there is no default version in VersionManager, namespace:[%v]", pod.Namespace))
+	}
+	//inject expected version
+	agentName := svmClient.GetPilotAgentContainer(pod)
+	for index, c := range spec.Containers {
+		if c.Name == agentName {
+			svmClient.CoverVersion(&spec.Containers[index], vm.DefaultVersion)
+			return &spec, nil
+		}
+	}
+	err = errors.New(fmt.Sprintf("Inject version failure, cant find contanier named:%v", agentName))
+	return nil, err
 }
 
 func parseTemplate(tmplStr string, funcMap map[string]interface{}, data SidecarTemplateData) (bytes.Buffer, error) {

@@ -1,0 +1,3 @@
+FROM scratch
+ADD version-manager /usr/local/bin/version-manager
+ENTRYPOINT ["/usr/local/bin/version-manager"]

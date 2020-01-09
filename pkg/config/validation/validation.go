@@ -578,6 +578,10 @@ func ValidateEnvoyFilter(_, _ string, msg proto.Message) (errs error) {
 	return
 }
 
+func ValidateVersionManager(name, namespace string, config proto.Message) (errs error) {
+	return
+}
+
 // validates that hostname in ns/<hostname> is a valid hostname according to
 // API specs
 func validateSidecarOrGatewayHostnamePart(hostname string, isGateway bool) (errs error) {

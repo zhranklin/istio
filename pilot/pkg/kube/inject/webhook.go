@@ -18,6 +18,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -27,19 +28,21 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/hashicorp/go-multierror"
 	"github.com/howeyc/fsnotify"
-
 	"istio.io/api/annotation"
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/pilot/cmd"
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
+	"istio.io/istio/pilot/pkg/kube/version"
+	"istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
-
 	"k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -68,15 +71,18 @@ type Webhook struct {
 	healthCheckInterval time.Duration
 	healthCheckFile     string
 
-	server     *http.Server
-	meshFile   string
-	configFile string
-	valuesFile string
-	watcher    *fsnotify.Watcher
-	certFile   string
-	keyFile    string
-	cert       *tls.Certificate
-	mon        *monitor
+	server      *http.Server
+	meshFile    string
+	configFile  string
+	valuesFile  string
+	versionFile string
+	watcher     *fsnotify.Watcher
+	certFile    string
+	keyFile     string
+	cert        *tls.Certificate
+	mon         *monitor
+	dependOnSvm bool
+	svmClient   *version.Client
 }
 
 func loadConfig(injectFile, meshFile, valuesFile string) (*Config, *meshconfig.MeshConfig, string, error) {
@@ -109,6 +115,14 @@ func loadConfig(injectFile, meshFile, valuesFile string) (*Config, *meshconfig.M
 	return &c, meshConfig, string(valuesConfig), nil
 }
 
+func initKubeClient(kubeConfig string) (kubernetes.Interface, error) {
+	if client, kuberr := kube.CreateClientset(kubeConfig, ""); kuberr != nil {
+		return nil, multierror.Prefix(kuberr, "failed to connect to Kubernetes API.")
+	} else {
+		return client, nil
+	}
+}
+
 // WebhookParameters configures parameters for the sidecar injection
 // webhook.
 type WebhookParameters struct {
@@ -117,6 +131,7 @@ type WebhookParameters struct {
 
 	ValuesFile string
 
+	KubeConfigFile string
 	// MeshFile is the path to the mesh configuration file.
 	MeshFile string
 
@@ -140,6 +155,8 @@ type WebhookParameters struct {
 	// HealthCheckFile specifies the path to the health check file
 	// that is periodically updated.
 	HealthCheckFile string
+
+	DependOnSvm bool
 }
 
 // NewWebhook creates a new instance of a mutating webhook for automatic sidecar injection.
@@ -152,7 +169,6 @@ func NewWebhook(p WebhookParameters) (*Webhook, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -183,7 +199,33 @@ func NewWebhook(p WebhookParameters) (*Webhook, error) {
 		certFile:               p.CertFile,
 		keyFile:                p.KeyFile,
 		cert:                   &pair,
+		dependOnSvm:            p.DependOnSvm,
 	}
+
+	if wh.dependOnSvm {
+		clientSet, err := initKubeClient(p.KubeConfigFile)
+		if err != nil {
+			return nil, err
+		}
+		kubeClient, ok := clientSet.(*kubernetes.Clientset)
+		if !ok {
+			errMsg := "type assertion failed. original type:[kubernetes.Interface], assert type:[*kubernetes.Clientset]"
+			log.Warn(errMsg)
+			return nil, errors.New(errMsg)
+		}
+
+		svmClient := version.NewSvmClient(version.SvmOptions{
+			Domain:                      "",
+			KubeClient:                  kubeClient,
+			EnableStatusUpdateTask:      false,
+			EnablePodsHashCheckTask:     false,
+			StatusUpdateIntervalSecond:  0,
+			PodsHashCheckIntervalSecond: 0,
+			UpgradeTimeoutSecond:        0,
+		})
+		wh.svmClient = svmClient
+	}
+
 	// mtls disabled because apiserver webhook cert usage is still TBD.
 	wh.server.TLSConfig = &tls.Config{GetCertificate: wh.getCert}
 	h := http.NewServeMux()
@@ -208,6 +250,9 @@ func (wh *Webhook) Run(stop <-chan struct{}) {
 			log.Fatalf("admission webhook ListenAndServeTLS failed: %v", err)
 		}
 	}()
+	if wh.dependOnSvm {
+		go wh.svmClient.Run(stop)
+	}
 	defer wh.watcher.Close()
 	defer wh.server.Close()
 	defer wh.mon.monitoringServer.Close()
@@ -229,7 +274,6 @@ func (wh *Webhook) Run(stop <-chan struct{}) {
 				log.Errorf("update error: %v", err)
 				break
 			}
-
 			version := sidecarTemplateVersionHash(sidecarConfig.Template)
 			pair, err := tls.LoadX509KeyPair(wh.certFile, wh.keyFile)
 			if err != nil {
@@ -633,6 +677,14 @@ func (wh *Webhook) inject(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionRespons
 	if err != nil {
 		handleError(fmt.Sprintf("Injection data: err=%v spec=%v\n", err, iStatus))
 		return toAdmissionResponse(err)
+	}
+
+	if wh.dependOnSvm {
+		if specTemp, err := InjectionVersion(wh.svmClient, *spec, &pod); err != nil {
+			log.Warnf("Inject version through svm failed. err:%v", err)
+		} else {
+			spec = specTemp
+		}
 	}
 
 	annotations := map[string]string{annotation.SidecarStatus.Name: iStatus}

@@ -256,11 +256,9 @@ func keyFromUID(uid string) string {
 		return uid
 	}
 	fullname := strings.TrimPrefix(uid, kubePrefix)
-	if strings.Contains(fullname, ".") {
-		parts := strings.Split(fullname, ".")
-		if len(parts) == 2 {
-			return key(parts[1], parts[0])
-		}
+	dotPos := strings.LastIndex(fullname, ".")
+	if dotPos != -1 {
+		return key(fullname[dotPos+1:], fullname[:dotPos])
 	}
 	return fullname
 }

@@ -39,7 +39,6 @@ import (
 var Types *resource.Schema
 
 var (
-
 	// istio/authentication/v1alpha1/meshpolicies metadata
 	IstioAuthenticationV1alpha1Meshpolicies resource.Info
 
@@ -165,6 +164,9 @@ var (
 
 	// istio/networking/v1alpha3/gateways metadata
 	IstioNetworkingV1alpha3Gateways resource.Info
+
+	// istio/networking/v1alpha3/versionmanagers metadata
+	IstioNetworkingV1alpha3Versionmanagers resource.Info
 
 	// istio/networking/v1alpha3/serviceentries metadata
 	IstioNetworkingV1alpha3Serviceentries resource.Info
