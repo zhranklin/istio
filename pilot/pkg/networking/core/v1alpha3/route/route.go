@@ -206,7 +206,6 @@ func buildSidecarVirtualHostsForVirtualService(
 			Routes:              routes,
 		})
 	}
-
 	return out
 }
 

@@ -251,7 +251,7 @@ func (configgen *ConfigGeneratorImpl) buildSidecarOutboundHTTPRouteConfig(env *m
 	for _, p := range configgen.Plugins {
 		p.OnOutboundRouteConfiguration(pluginParams, out)
 	}
-
+	addXYanxuanAppHeader(node.WorkloadLabels, out, node)
 	return out
 }
 
